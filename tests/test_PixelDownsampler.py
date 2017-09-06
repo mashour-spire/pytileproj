@@ -37,20 +37,22 @@ Tests for the PixelDownsampler class.
 
 '''
 
+
 import numpy.testing as nptest
 import numpy as np
-from Equi7Grid.Equi7Grid.PixelDownsampler import PixelDownsampler
+from pytileproj.downsample import PixelDownsampler
+from pytileproj.downsample import downsampling_gauss_filter
 
 
 def test_downsample_via_pixel_indices():
 
     a_should = np.array([
-       [-53.65834427, -52.49286652, -50.99286652, -49.82738876],
-       [-46.66547775, -45.5       , -44.        , -42.83452225],
-       [-37.66547775, -36.5       , -35.        , -33.83452225],
-       [-28.66547775, -27.5       , -26.        , -24.83452225],
-       [-19.66547775, -18.5       , -17.        , -15.83452225],
-       [-12.67261124, -11.50713348, -10.00713348,  -8.84165573]])
+        [-53.65834427, -52.34365845, -50.62223434, -49.67818069],
+        [-46.66547775, -45.12936783, -43.07934952, -42.46389008],
+        [-37.66547775, -36.35079193, -34.62936783, -33.68531418],
+        [-28.66547775, -27.5, -26., -24.83452225],
+        [-19.66547775, -18.5, -17., -15.83452225],
+        [-12.67261124, -11.50713348, -10.00713348, -8.84165573]])
 
     array = np.arange(9 * 6, dtype=np.float32).reshape((9, 6)) - 56
     array[1, 3] = np.nan
@@ -60,6 +62,9 @@ def test_downsample_via_pixel_indices():
 
     nptest.assert_allclose(a_should, a)
 
+def a_downsampling_gauss_filter():
+
+    downsampling_gauss_filter(a, no_data_value=None, use_hard_coded_kernel=True)
 
 if __name__ == '__main__':
     test_downsample_via_pixel_indices()

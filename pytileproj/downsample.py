@@ -49,7 +49,8 @@ import numpy as np
 from scipy import ndimage
 from numba import jit
 from astropy.convolution import convolve
-from Kernel import Kernel
+
+from pytileproj.kernel import Kernel
 
 
 class PixelDownsampler(object):
