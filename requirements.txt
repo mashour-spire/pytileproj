@@ -1,4 +1,20 @@
 # Add your requirements here like:
-# numpy
-# scipy>=0.9
+astropy
+numpy
+# gdal - install via conda
+# numba - install via conda
+# scipy - install via conda
+
+
+################################################################################
+# Notes:
+#
+# proj.4 >= 4.9.1 due to inaccurate reprojection
+#
+# GDAL >= 2.1.0 for using the proj.4 version of 4.9.2 or later
+
+
+
+
+
 
