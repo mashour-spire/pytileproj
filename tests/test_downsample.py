@@ -43,6 +43,23 @@ import numpy as np
 from pytileproj.downsample import PixelDownsampler
 from pytileproj.downsample import downsampling_gauss_filter
 
+def test_downsampling_gauss_filter():
+
+    a_should = np.array(
+        [[-445.795013, -385.967133, -331.785095, -282.566467, -169.724945, -95.139290],
+         [-86.827858, -27.000000, 39.146229, 127.000000, 214.853775, 263.827850],
+         [375.172150, 435.000000, 532.150391, 654.122620, 694.210571, 725.827881],
+         [837.172119, 897.000000, 974.000000, 1051.000000, 1128.000000, 1187.827881],
+         [1299.172119, 1359.000000, 1436.000000, 1513.000000, 1590.000000, 1649.827881],
+         [1658.139282, 1717.967163, 1794.967163, 1871.967163, 1948.967163, 2008.795044]])
+
+    a = np.arange(6 * 6, dtype=np.float32).reshape((6, 6)) * 77 - 566
+    a[1, 3] = np.nan
+
+    a_out = downsampling_gauss_filter(a, no_data_value=None, use_hard_coded_kernel=False)
+
+    nptest.assert_allclose(a_should, a_out, atol=1e-7)
+
 
 def test_downsample_via_pixel_indices():
 
@@ -54,17 +71,11 @@ def test_downsample_via_pixel_indices():
         [-19.66547775, -18.5, -17., -15.83452225],
         [-12.67261124, -11.50713348, -10.00713348, -8.84165573]])
 
-    array = np.arange(9 * 6, dtype=np.float32).reshape((9, 6)) - 56
-    array[1, 3] = np.nan
+    a = np.arange(9 * 6, dtype=np.float32).reshape((9, 6)) - 56
+    a[1, 3] = np.nan
 
     ds = PixelDownsampler(200, 300, [0, 0, 1200, 1800])
-    a = ds.downsample_via_pixel_indices(array)
+    a_out = ds.downsample_via_pixel_indices(a)
 
-    nptest.assert_allclose(a_should, a)
+    nptest.assert_allclose(a_should, a_out)
 
-def a_downsampling_gauss_filter():
-
-    downsampling_gauss_filter(a, no_data_value=None, use_hard_coded_kernel=True)
-
-if __name__ == '__main__':
-    test_downsample_via_pixel_indices()
