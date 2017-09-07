@@ -263,11 +263,11 @@ def calc_pixel_index_pattern(spacing_fine, spacing_coarse):
     return pattern
 
 
-def translate_pixelmaps(spacing_fine, spacing_coarse, target_bbox):
+def translate_pixelmaps(spacing_fine, spacing_coarse, target_bbox, correct_boundary=False):
 
     #TODO:
     # implement ghosting-reader (read buffer around target area), then set this to True
-    correct_boundary = False
+    # correct_boundary = True
 
     # resolution of grid
     res_f = spacing_fine

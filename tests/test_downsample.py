@@ -40,10 +40,83 @@ Tests for the PixelDownsampler class.
 
 import numpy.testing as nptest
 import numpy as np
+from pytileproj.downsample import calc_pixel_index_pattern
+from pytileproj.downsample import translate_pixelmaps
+from pytileproj.downsample import fast_mask_counting
 from pytileproj.downsample import PixelDownsampler
 from pytileproj.downsample import downsampling_gauss_filter
 
+
+def test_calc_pixel_index_pattern():
+
+    a_out = calc_pixel_index_pattern(75,500)
+    a_should = [7, 6, 7]
+    nptest.assert_array_equal(a_should, a_out)
+
+    b_out = calc_pixel_index_pattern(13,4)
+    b_should = [0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0]
+    nptest.assert_array_equal(b_should, b_out)
+
+
+def test_translate_pixelmaps():
+
+    spacing_fine = 10
+    spacing_coarse = 75
+    target_bbox = [4800000, 1200000, 4800150, 1200300]
+    _, _, pix_count, cum_pixels_x, cum_pixels_y, needed_bbox, needed_shape = \
+    translate_pixelmaps(spacing_fine, spacing_coarse, target_bbox, correct_boundary=True)
+
+    pix_count_should = (
+        [[49, 56, 49, 56, 49, 56],
+         [56, 64, 56, 64, 56, 64],
+         [49, 56, 49, 56, 49, 56],
+         [56, 64, 56, 64, 56, 64],
+         [49, 56, 49, 56, 49, 56],
+         [56, 64, 56, 64, 56, 64],
+         [49, 56, 49, 56, 49, 56],
+         [56, 64, 56, 64, 56, 64]])
+    nptest.assert_array_equal(pix_count_should, pix_count)
+
+    cum_pixels_x_should = np.array([ 7, 15, 22, 30, 37, 45])
+    nptest.assert_array_equal(cum_pixels_x_should, cum_pixels_x)
+
+    cum_pixels_y_should = np.array([ 7, 15, 22, 30, 37, 45, 52, 60])
+    nptest.assert_array_equal(cum_pixels_y_should, cum_pixels_y)
+
+    needed_bbox_should = [4799850, 1199850, 4800300, 1200450]
+    nptest.assert_array_equal(needed_bbox_should, needed_bbox)
+
+    needed_shape_should = (60, 45)
+    nptest.assert_array_equal(needed_shape_should, needed_shape)
+
+def test_fast_mask_counting():
+
+    mask = np.ones((9,6), dtype='int8')
+    mask[1:4, [1, 4]] = 0
+    mask[3, 5] = 0
+    coarse_shape = (6, 4)
+    pattern_x = np.array((1, 3, 4, 6), dtype='uint16')
+    pattern_y = np.array((1, 3, 4, 6, 7, 9), dtype='uint16')
+
+    a_out = fast_mask_counting(mask, coarse_shape, pattern_x, pattern_y)
+
+    a_should = (
+        [[0, 0, 0, 0],
+         [0, 2, 0, 2],
+         [0, 1, 0, 2],
+         [0, 0, 0, 0],
+         [0, 0, 0, 0],
+         [0, 0, 0, 0]])
+
+    nptest.assert_array_equal(a_should, a_out)
+
+
 def test_downsampling_gauss_filter():
+
+    a = np.arange(6 * 6, dtype=np.float32).reshape((6, 6)) * 77 - 566
+    a[1, 3] = np.nan
+
+    a_out = downsampling_gauss_filter(a, no_data_value=None, use_hard_coded_kernel=False)
 
     a_should = np.array(
         [[-445.795013, -385.967133, -331.785095, -282.566467, -169.724945, -95.139290],
@@ -53,15 +126,16 @@ def test_downsampling_gauss_filter():
          [1299.172119, 1359.000000, 1436.000000, 1513.000000, 1590.000000, 1649.827881],
          [1658.139282, 1717.967163, 1794.967163, 1871.967163, 1948.967163, 2008.795044]])
 
-    a = np.arange(6 * 6, dtype=np.float32).reshape((6, 6)) * 77 - 566
-    a[1, 3] = np.nan
-
-    a_out = downsampling_gauss_filter(a, no_data_value=None, use_hard_coded_kernel=False)
-
     nptest.assert_allclose(a_should, a_out, atol=1e-7)
 
 
 def test_downsample_via_pixel_indices():
+
+    a = np.arange(9 * 6, dtype=np.float32).reshape((9, 6)) - 56
+    a[1, 3] = np.nan
+
+    ds = PixelDownsampler(200, 300, [0, 0, 1200, 1800])
+    a_out = ds.downsample_via_pixel_indices(a)
 
     a_should = np.array([
         [-53.65834427, -52.34365845, -50.62223434, -49.67818069],
@@ -70,12 +144,6 @@ def test_downsample_via_pixel_indices():
         [-28.66547775, -27.5, -26., -24.83452225],
         [-19.66547775, -18.5, -17., -15.83452225],
         [-12.67261124, -11.50713348, -10.00713348, -8.84165573]])
-
-    a = np.arange(9 * 6, dtype=np.float32).reshape((9, 6)) - 56
-    a[1, 3] = np.nan
-
-    ds = PixelDownsampler(200, 300, [0, 0, 1200, 1800])
-    a_out = ds.downsample_via_pixel_indices(a)
 
     nptest.assert_allclose(a_should, a_out)
 
