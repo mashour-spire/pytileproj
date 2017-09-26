@@ -277,7 +277,7 @@ class TiledProjectionSystem(object):
                                 extent=None,
                                 epsg=4326,
                                 wkt=None,
-                                sgrid_ids=None,
+                                subgrid_ids=None,
                                 coverland=False,
                                 gdal_path=None):
 
@@ -294,7 +294,7 @@ class TiledProjectionSystem(object):
         epsg : str
             EPSG CODE defining the spatial reference system, in which
             the geometry or extent is given. Default is LatLon (EPSG:4326)
-        sgrid_ids : list
+        subgrid_ids : list
             grid ID to specified which continents you want to search. Default
             value is None for searching all continents.
 
@@ -305,12 +305,12 @@ class TiledProjectionSystem(object):
             If not found, return empty list.
         """
         # check input grids
-        if sgrid_ids is None:
-            sgrid_ids = self.subgrids.keys()
+        if subgrid_ids is None:
+            subgrid_ids = self.subgrids.keys()
         else:
-            sgrid_ids = [x.upper() for x in sgrid_ids]
-            if set(sgrid_ids).issubset(set(self.subgrids.keys())):
-                sgrid_ids = list(sgrid_ids)
+            subgrid_ids = [x.upper() for x in subgrid_ids]
+            if set(subgrid_ids).issubset(set(self.subgrids.keys())):
+                subgrid_ids = list(subgrid_ids)
             else:
                 raise ValueError("Invalid agrument: grid must one of [ %s ]." %
                                  " ".join(self.subgrids.keys()))
@@ -339,11 +339,11 @@ class TiledProjectionSystem(object):
 
         # intersect the given grid ids and the overlapped ids
         overlapped_grids = self.locate_geometry_in_subgrids(geom_area)
-        sgrid_ids = list(set(sgrid_ids) & set(overlapped_grids))
+        subgrid_ids = list(set(subgrid_ids) & set(overlapped_grids))
 
         # finding tiles
         overlapped_tiles = list()
-        for sgrid_id in sgrid_ids:
+        for sgrid_id in subgrid_ids:
             overlapped_tiles.extend(
                 self._search_sgrid_tiles(geom_area, sgrid_id, coverland))
         return overlapped_tiles
