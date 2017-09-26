@@ -4,9 +4,6 @@ numpy>1.13.1
 dask>0.15.3
 toolz>=0.8.2
 pyproj>=1.9.5.1
-dask>0.15.3
-toolz>=0.8.2
-pyproj>=1.9.5.1
 
 # gdal - install via conda
 # numba - install via conda
