@@ -179,7 +179,7 @@ def get_geom_boundaries(geometry, rounding=1.0):
     limits = [int(x / rounding) * rounding for x in limits]
     return limits
 
-def extent2polygon(extent, wkt=None):
+def extent2polygon(extent, epsg=None, wkt=None):
     """create a polygon geometry from extent.
 
     extent : list
@@ -192,13 +192,19 @@ def extent2polygon(extent, wkt=None):
             (extent[2], (extent[1] + extent[3])/2),
             (extent[2], extent[3]), ((extent[0] + extent[2])/2, extent[3]), (extent[0], extent[3]),
             (extent[0], (extent[1] + extent[3])/2)]
+
     edge = ogr.Geometry(ogr.wkbLinearRing)
     [edge.AddPoint(x, y) for x, y in area]
     edge.CloseRings()
     geom_area = ogr.Geometry(ogr.wkbPolygon)
     geom_area.AddGeometry(edge)
+    if epsg:
+        geo_sr = osr.SpatialReference()
+        geo_sr.ImportFromEPSG(epsg)
+        geom_area.AssignSpatialReference(geo_sr)
     if wkt:
         geo_sr = osr.SpatialReference()
         geo_sr.ImportFromWkt(wkt)
         geom_area.AssignSpatialReference(geo_sr)
+
     return geom_area
