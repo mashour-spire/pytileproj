@@ -22,7 +22,7 @@ def warp2tiledgeotiff(TPS, image, output_dir,
     Parameters
     ----------
     grid : TiledProjectionSystem
-        a compatible TPS object
+        a compatible TPS object, e.g. a Equi7Grid(500) object.
     image : string
         Image file path.
     ouput_dir : string
