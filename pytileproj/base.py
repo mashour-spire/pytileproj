@@ -203,7 +203,7 @@ class TiledProjectionSystem(object):
         return covering_subgrid
 
 
-    def lonlat2xy(self, lat, lon, subgrid=None):
+    def lonlat2xy(self, lon, lat, subgrid=None):
         '''
         converts latitude and longitude coordinates to TPS grid coordinates
 
@@ -216,13 +216,13 @@ class TiledProjectionSystem(object):
         # TODO use pyproj.transform for performance when having many points
         if subgrid is None:
             vfunc = np.vectorize(self._lonlat2xy)
-            return vfunc(lat, lon)
+            return vfunc(lon, lat)
         else:
             vfunc = np.vectorize(self._lonlat2xy_subgrid)
-            return vfunc(lat, lon, subgrid)
+            return vfunc(lon, lat, subgrid)
 
 
-    def _lonlat2xy(self, lat, lon):
+    def _lonlat2xy(self, lon, lat):
         """
         finds overlapping subgrids of given geometry and computes the projected coordinates
         """
@@ -241,7 +241,7 @@ class TiledProjectionSystem(object):
         return np.full_like(x, subgrid, dtype=(np.str, len(subgrid))), x, y
 
 
-    def _lonlat2xy_subgrid(self, lat, lon, subgrid):
+    def _lonlat2xy_subgrid(self, lon, lat, subgrid):
         '''
         computes the projected coordinates in given subgrid
 
@@ -406,7 +406,7 @@ class TilingSystem(object):
         return a
 
     @abc.abstractmethod
-    def identify_tiles_overlapping_bbox(self, bbox):
+    def identify_tiles_overlapping_xybbox(self, bbox):
         """Light-weight routine that returns
            the name of tiles intersecting the bounding box.
 
@@ -434,7 +434,7 @@ class TilingSystem(object):
         return tilenames
 
 
-    def create_tiles_overlapping_bbox(self, bbox):
+    def create_tiles_overlapping_xybbox(self, bbox):
         """Light-weight routine that returns
            the name of tiles intersecting the bounding box.
 
@@ -451,7 +451,7 @@ class TilingSystem(object):
             with .subset() not exceeding the bounding box.
 
         """
-        tilenames = self.identify_tiles_overlapping_bbox(bbox)
+        tilenames = self.identify_tiles_overlapping_xybbox(bbox)
         tiles = list()
 
         for t in tilenames:
@@ -479,9 +479,9 @@ class TilingSystem(object):
         return tiles
 
 
-    def create_daskarray_overlapping_bbox(self, bbox):
+    def create_daskarray_overlapping_xybbox(self, bbox):
 
-        tiles = self.create_tiles_per_bbox(bbox)
+        tiles = self.create_tiles_overlapping_xybbox(bbox)
         tilenames = [x.name for x in tiles]
 
         x_anchors = set([t.llx for t in tiles])
