@@ -38,10 +38,10 @@ Code for Tiled Projection Systems.
 '''
 
 import abc
+import itertools
 
 import numpy as np
 import dask.array as da
-
 from osgeo import osr
 
 import geometry as geometry
@@ -271,6 +271,143 @@ class TiledProjectionSystem(object):
     @abc.abstractmethod
     def get_tilesize(self, res):
         pass
+
+    def search_tiles_in_geo_roi(self,
+                                geom_area=None,
+                                extent=None,
+                                epsg=4326,
+                                wkt=None,
+                                sgrid_ids=None,
+                                coverland=False,
+                                gdal_path=None):
+
+        """
+        Search the tiles which are intersected by the poly_roi area.
+
+        Parameters
+        ----------
+        geom_area : geometry
+            a polygon or multipolygon geometery object representing the ROI
+        extent : list
+            It is a polygon representing the rectangle region of interest
+            in the format of [xmin, ymin, xmax, ymax].
+        epsg : str
+            EPSG CODE defining the spatial reference system, in which
+            the geometry or extent is given. Default is LatLon (EPSG:4326)
+        sgrid_ids : list
+            grid ID to specified which continents you want to search. Default
+            value is None for searching all continents.
+
+        Returns
+        -------
+        list
+            return a list of  the overlapped tiles' name.
+            If not found, return empty list.
+        """
+        # check input grids
+        if sgrid_ids is None:
+            sgrid_ids = self.subgrids.keys()
+        else:
+            sgrid_ids = [x.upper() for x in sgrid_ids]
+            if set(sgrid_ids).issubset(set(self.subgrids.keys())):
+                sgrid_ids = list(sgrid_ids)
+            else:
+                raise ValueError("Invalid agrument: grid must one of [ %s ]." %
+                                 " ".join(self.subgrids.keys()))
+
+        if not geom_area and not extent:
+            print "Error: either geom or extent should be given as the ROI."
+            return list()
+
+        # obtain the geometry of ROI
+        if not geom_area:
+            if epsg is not None:
+                geom_area = geometry.extent2polygon(extent, epsg=epsg)
+            elif wkt is not None:
+                geom_area = geometry.extent2polygon(extent, wkt=wkt)
+            else:
+                raise ValueError("Error: either epsg or wkt of ROI coordinates must be defined!")
+
+        # load lat-lon spatial reference as the default
+        geo_sr = TPSProjection(epsg=4326).osr_spref
+
+        geom_sr = geom_area.GetSpatialReference()
+        if geom_sr is None:
+            geom_area.AssignSpatialReference(geo_sr)
+        elif not geom_sr.IsSame(geo_sr):
+            geom_area.TransformTo(geo_sr)
+
+        # intersect the given grid ids and the overlapped ids
+        overlapped_grids = self.locate_geometry_in_subgrids(geom_area)
+        sgrid_ids = list(set(sgrid_ids) & set(overlapped_grids))
+
+        # finding tiles
+        overlapped_tiles = list()
+        for sgrid_id in sgrid_ids:
+            overlapped_tiles.extend(
+                self._search_sgrid_tiles(geom_area, sgrid_id, coverland))
+        return overlapped_tiles
+
+    def _search_sgrid_tiles(self, geom, sgrid_id, coverland):
+        """
+        Search the tiles which are overlapping with the given grid.
+
+        Parameters
+        ----------
+        area_geometry : geometry
+            It is a polygon geometry representing the region of interest.
+        sgrid_id : string
+            sub grid ID to specified which continent you want to search.
+            Default value is None for searching all continents.
+
+        Returns
+        -------
+        list
+            Return a list of  the overlapped tiles' name.
+            If not found, return empty list.
+        """
+
+        subgrid = getattr(self, sgrid_id)
+
+        # get the spatial reference of the subgrid
+        grid_sr = subgrid.projection.osr_spref
+
+        # get the intersection of the area of interest and grid zone
+        geom.TransformTo(grid_sr)
+
+        intersect = geom.Intersection(geom.Intersection(subgrid.polygon_proj))
+        if not intersect:
+            return list()
+        # The spatial reference need to be set again after intersection
+        #intersect.AssignSpatialReference(geom.GetSpatialReference())
+
+        # transform the area of interest to the grid coordinate system
+        #grid_sr = getattr(self, sgrid_id).projection.osr_spref
+        #intersect.TransformTo(grid_sr)
+
+        # get envelope of the Geometry and cal the bounding tile of the
+        envelope = intersect.GetEnvelope()
+        x_min = int(envelope[0]) / self.core.tile_xsize_m * self.core.tile_xsize_m
+        x_max = (int(envelope[1]) / self.core.tile_xsize_m + 1) * self.core.tile_xsize_m
+        y_min = int(envelope[2]) / self.core.tile_ysize_m * self.core.tile_ysize_m
+        y_max = (int(envelope[3]) / self.core.tile_ysize_m + 1) * self.core.tile_ysize_m
+
+        # make sure x_min and y_min greater or equal 0
+        x_min = 0 if x_min < 0 else x_min
+        y_min = 0 if y_min < 0 else y_min
+
+        # get overlapped tiles
+        overlapped_tiles = list()
+        for x, y in itertools.product(xrange(x_min, x_max, self.core.tile_xsize_m),
+                                      xrange(y_min, y_max, self.core.tile_ysize_m)):
+            geom_tile = geometry.extent2polygon((x, y, x + self.core.tile_xsize_m,
+                                                 y + self.core.tile_xsize_m))
+            if geom_tile.Intersects(intersect):
+                ftile = subgrid.tilesys.point2tilename(x, y)
+                if not coverland or subgrid.tilesys.check_land_coverage(ftile):
+                    overlapped_tiles.append(ftile)
+
+        return overlapped_tiles
 
 class TiledProjection(object):
     """
