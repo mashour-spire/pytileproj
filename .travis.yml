@@ -32,12 +32,13 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  - conda create -q -n test-environment -c conda-forge python=$TRAVIS_PYTHON_VERSION numpy scipy pytest pip gdal pyproj numba astropy toolz dask
-  - source activate test-environment
-  - python setup.py install
-  - pip list
-  - which pip
-  - which python
+  #- conda create -q -n test-environment -c conda-forge python=$TRAVIS_PYTHON_VERSION numpy scipy pytest pip gdal
+  #pyproj numba astropy toolz dask
+  #- source activate test-environment
+  #- python setup.py install
+  #- pip list
+  #- which pip
+  #- which python
 
 script:
   - python setup.py test
