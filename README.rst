@@ -2,8 +2,13 @@
 pytileproj
 ==========
 
+.. image:: https://travis-ci.org/TUW-GEO/pytileproj.svg?branch=master
+    :target: https://travis-ci.org/TUW-GEO/pytileproj
 
-Add a short description here!
+.. image:: https://badge.fury.io/py/pytileproj.svg
+    :target: https://badge.fury.io/py/pytileproj
+
+A python class for working with TiledProjectionSystems (TPS) - how to convert to - how to use a tiling system - etc.
 
 
 Description
