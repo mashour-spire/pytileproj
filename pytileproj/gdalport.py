@@ -130,7 +130,7 @@ class GdalImage:
         """
 
         nodata = list()
-        for i in xrange(0, self.dataset.RasterCount):
+        for i in range(0, self.dataset.RasterCount):
             nodata.append(self.dataset.GetRasterBand(i + 1).GetNoDataValue())
 
         return nodata if len(nodata) >= 0 and not all(d is None for d in nodata) else None
@@ -139,7 +139,7 @@ class GdalImage:
         """read the data of all the bands"""
         m = np.full((self.band_count(), self.YSize(), self.XSize()), 0.0)
 
-        for bandIdx in xrange(self.band_count()):
+        for bandIdx in range(self.band_count()):
             m[bandIdx] = self.read_band(bandIdx + 1)
 
         return m
@@ -167,7 +167,7 @@ class GdalImage:
             return None
 
         colormap = []
-        for i in xrange(ct.GetCount()):
+        for i in range(ct.GetCount()):
             colormap.append(ct.GetColorEntry(i))
 
         return colormap
@@ -403,14 +403,14 @@ def write_image(image, filename, frmt="GTiff", nodata=None,
     if image.ndim == 2:
         ds.GetRasterBand(1).WriteArray(image, 0, 0)
     else:
-        for i in xrange(ds.RasterCount):
+        for i in range(ds.RasterCount):
             ds.GetRasterBand(i + 1).WriteArray(image[i] if dtype is None else image[i].astype(dtype), 0, 0)
 
     ds.FlushCache()
     # set nodata for each band
     if nodata is not None:
         assert ds.RasterCount == len(nodata) or len(nodata) == 1, "Mismatch of nodata values and RasterCount"
-        for i, val in izip(xrange(ds.RasterCount), cycle(nodata)):
+        for i, val in izip(range(ds.RasterCount), cycle(nodata)):
             ds.GetRasterBand(i + 1).SetNoDataValue(val)
 
     # colormaps are only supported for 1 band rasters
@@ -421,7 +421,7 @@ def write_image(image, filename, frmt="GTiff", nodata=None,
                 color = list(color) + [0,]
             ct.SetColorEntry(i, tuple(color))
 
-        for i in xrange(ds.RasterCount):
+        for i in range(ds.RasterCount):
             ds.GetRasterBand(i + 1).SetRasterColorTable(ct)
 
     return ds
