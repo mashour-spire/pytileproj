@@ -41,7 +41,7 @@ import abc
 import itertools
 
 import numpy as np
-import dask.array as da
+#import dask.array as da
 from osgeo import osr
 
 import geometry as geometry
@@ -615,7 +615,7 @@ class TilingSystem(object):
 
         return tiles
 
-
+    '''
     def create_daskarray_overlapping_xybbox(self, bbox):
 
         tiles = self.create_tiles_overlapping_xybbox(bbox)
@@ -637,6 +637,7 @@ class TilingSystem(object):
         m = g.map_blocks(func)
 
         y = da.ghost.trim_internal(m, {0: 1, 1: 1})
+    '''
 
 
 
