@@ -45,7 +45,7 @@ import numpy as np
 from osgeo import osr
 
 import geometry as geometry
-
+import pyproj
 
 
 class TPSCoreProperty(object):
@@ -213,13 +213,12 @@ class TiledProjectionSystem(object):
         :return:
         '''
 
-        # TODO use pyproj.transform for performance when having many points
         if subgrid is None:
             vfunc = np.vectorize(self._lonlat2xy)
             return vfunc(lon, lat)
         else:
-            vfunc = np.vectorize(self._lonlat2xy_subgrid)
-            return vfunc(lon, lat, subgrid)
+
+            return self._lonlat2xy_subgrid(lon, lat, subgrid)
 
 
     def _lonlat2xy(self, lon, lat):
@@ -251,12 +250,10 @@ class TiledProjectionSystem(object):
         '''
 
         # set up spatial references
-        lonlatprojection = TPSProjection(epsg=4326)
+        p_grid = pyproj.Proj(self.subgrids[subgrid].core.projection.proj4)
+        p_geo = pyproj.Proj(init="EPSG:4326")
 
-        x, y, = geometry.uv2xy(lonlatprojection.osr_spref,
-                      self.subgrids[subgrid].core.projection.osr_spref,
-                      lon,
-                      lat)
+        x, y, = pyproj.transform(p_geo, p_grid, lon, lat)
 
         return np.full_like(x, subgrid, dtype=(np.str, len(subgrid))), x, y
 
@@ -463,8 +460,8 @@ class TiledProjection(object):
 
 
     def xy2lonlat(self, x, y):
-        vfunc = np.vectorize(self._xy2lonlat)
-        return vfunc(x, y)
+
+        return self._xy2lonlat(x, y)
 
     def _xy2lonlat(self, x, y):
         '''
@@ -475,9 +472,13 @@ class TiledProjection(object):
         '''
 
         # set up spatial references
-        lonlatprojection = TPSProjection(epsg=4326)
+        p_grid = pyproj.Proj(self.core.projection.proj4)
+        p_geo = pyproj.Proj(init="EPSG:4326")
 
-        return geometry.uv2xy(self.core.projection.osr_spref, lonlatprojection.osr_spref, x, y)
+        lon, lat = pyproj.transform(p_grid, p_geo, x, y)
+
+        return lon, lat
+
 
 
 
