@@ -255,7 +255,7 @@ class TiledProjectionSystem(object):
 
         x, y, = pyproj.transform(p_geo, p_grid, lon, lat)
 
-        return np.full_like(x, subgrid, dtype=(np.str, len(subgrid))), x, y
+        return subgrid, x, y
 
     @abc.abstractmethod
     def create_tile(self, name):
