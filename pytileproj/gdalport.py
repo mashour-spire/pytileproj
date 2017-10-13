@@ -394,7 +394,7 @@ def write_image(image, filename, frmt="GTiff", nodata=None,
             if not filter(lambda x: x.upper().startswith("COMPRESS"), option):
                 option.append("COMPRESS=LZW")
             else:
-                print "Info: use compression method set by option!"
+                print("Info: use compression method set by option!")
 
     # create dataset
     ds = create_dataset(filename, str(image.dtype), dims, frmt, geotransform,

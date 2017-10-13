@@ -117,7 +117,7 @@ def warp2tiledgeotiff(TPS, image, output_dir,
                                                         gdal_path=gdal_path,
                                                         nodata=image_nodata)
                 except Exception as e:
-                    print "retrieve_raster_boundary failed:", str(e)
+                    print("retrieve_raster_boundary failed:", str(e))
                     roi_geom = None
             else:
                 roi_geom = None

@@ -395,8 +395,8 @@ class TiledProjectionSystem(object):
 
         # get overlapped tiles
         overlapped_tiles = list()
-        for x, y in itertools.product(xrange(x_min, x_max, self.core.tile_xsize_m),
-                                      xrange(y_min, y_max, self.core.tile_ysize_m)):
+        for x, y in itertools.product(range(x_min, x_max, self.core.tile_xsize_m),
+                                      range(y_min, y_max, self.core.tile_ysize_m)):
             geom_tile = geometry.extent2polygon((x, y, x + self.core.tile_xsize_m,
                                                  y + self.core.tile_xsize_m))
             if geom_tile.Intersects(intersect):
