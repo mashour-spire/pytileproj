@@ -313,7 +313,7 @@ class TiledProjectionSystem(object):
                                  " ".join(self.subgrids.keys()))
 
         if not geom_area and not extent:
-            print "Error: either geom or extent should be given as the ROI."
+            print("Error: either geom or extent should be given as the ROI.")
             return list()
 
         # obtain the geometry of ROI

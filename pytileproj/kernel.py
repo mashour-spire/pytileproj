@@ -58,7 +58,7 @@ class Kernel(object):
         # recommended size of array carrying the kernel
         rec_size = kernels._round_up_to_odd_integer(4.0 * sdev)
         if self.size != rec_size:
-            print "Kernel size is not properly chosen, to reflect gaussian function!"
+            print("Kernel size is not properly chosen, to reflect gaussian function!")
 
         # normalized gaussian kernel
         GaussKernel = kernels.Gaussian2DKernel(stddev=sdev, x_size=self.size, y_size=self.size)
