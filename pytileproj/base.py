@@ -367,20 +367,20 @@ class TiledProjectionSystem(object):
         subgrid = getattr(self, sgrid_id)
 
         # get the spatial reference of the subgrid
-        grid_sr = subgrid.projection.osr_spref
+        #grid_sr = subgrid.projection.osr_spref
 
         # get the intersection of the area of interest and grid zone
-        geom.TransformTo(grid_sr)
+        #geom.TransformTo(grid_sr)
 
-        intersect = geom.Intersection(geom.Intersection(subgrid.polygon_proj))
+        intersect = geom.Intersection(geom.Intersection(subgrid.polygon_geog))
         if not intersect:
             return list()
         # The spatial reference need to be set again after intersection
-        #intersect.AssignSpatialReference(geom.GetSpatialReference())
+        intersect.AssignSpatialReference(geom.GetSpatialReference())
 
         # transform the area of interest to the grid coordinate system
-        #grid_sr = getattr(self, sgrid_id).projection.osr_spref
-        #intersect.TransformTo(grid_sr)
+        grid_sr = getattr(self, sgrid_id).projection.osr_spref
+        intersect.TransformTo(grid_sr)
 
         # get envelope of the Geometry and cal the bounding tile of the
         envelope = intersect.GetEnvelope()
@@ -747,8 +747,8 @@ class Tile(object):
             a list contain the geotransfrom elements
 
         """
-        geot = [self.llx, self.res, 0,
-                self.lly + self.core.tile_ysize_m, 0, -self.res]
+        geot = [self.llx, self.core.res, 0,
+                self.lly + self.core.tile_ysize_m, 0, -self.core.res]
 
         return geot
 
