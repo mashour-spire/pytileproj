@@ -364,23 +364,35 @@ class TiledProjectionSystem(object):
             If not found, return empty list.
         """
 
+        # common, global spatial reference system for boundary intersection
+        intersect_sr = osr.SpatialReference()
+        intersect_sr.ImportFromEPSG(4326)
+
         subgrid = getattr(self, sgrid_id)
 
-        # get the spatial reference of the subgrid
+        # get the spatial reference of the sub grid
         grid_sr = subgrid.projection.osr_spref
+        if not grid_sr.IsSame(intersect_sr):
+            subgrid.polygon_proj.TransformTo(intersect_sr)
 
-        # get the intersection of the area of interest and grid zone
-        geom.TransformTo(grid_sr)
+        # get the spatial reference of the area of interest
+        geom_sr = geom.GetSpatialReference()
+        if not geom_sr.IsSame(intersect_sr):
+            geom.TransformTo(intersect_sr)
 
         intersect = geom.Intersection(geom.Intersection(subgrid.polygon_proj))
         if not intersect:
             return list()
+
+        # transform intersection geometry back to the spatial reference system of the sub grid
+        intersect.TransformTo(grid_sr)
+
         # The spatial reference need to be set again after intersection
-        #intersect.AssignSpatialReference(geom.GetSpatialReference())
+        # intersect.AssignSpatialReference(geom.GetSpatialReference())
 
         # transform the area of interest to the grid coordinate system
-        #grid_sr = getattr(self, sgrid_id).projection.osr_spref
-        #intersect.TransformTo(grid_sr)
+        # grid_sr = getattr(self, sgrid_id).projection.osr_spref
+        # intersect.TransformTo(grid_sr)
 
         # get envelope of the Geometry and cal the bounding tile of the
         envelope = intersect.GetEnvelope()
