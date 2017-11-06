@@ -4,9 +4,6 @@ numpy>=1.13.1
 toolz>=0.8.2
 pyproj>=1.9.5.1
 
-# for testing, a class child is needed
-Equi7Grid
-
 # gdal - install via conda
 # numba - install via conda
 # scipy - install via conda
