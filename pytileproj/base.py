@@ -807,9 +807,9 @@ class Tile(object):
 
         returns
         -------
-        i : number
+        i : integer
             pixel row number
-        j : number
+        j : integer
             pixel column number
         """
 
