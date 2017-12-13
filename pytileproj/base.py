@@ -364,22 +364,17 @@ class TiledProjectionSystem(object):
             If not found, return empty list.
         """
 
+        # common, global spatial reference system for boundary intersection
+        intersect_sr = osr.SpatialReference()
+        intersect_sr.ImportFromEPSG(4326)
+
         subgrid = getattr(self, sgrid_id)
-
-        # get the spatial reference of the subgrid
-        #grid_sr = subgrid.projection.osr_spref
-
-        # get the intersection of the area of interest and grid zone
-        #geom.TransformTo(grid_sr)
 
         intersect = geom.Intersection(geom.Intersection(subgrid.polygon_geog))
         if not intersect:
             return list()
-        # The spatial reference need to be set again after intersection
-        intersect.AssignSpatialReference(geom.GetSpatialReference())
 
-        # transform the area of interest to the grid coordinate system
-        grid_sr = getattr(self, sgrid_id).projection.osr_spref
+        # transform intersection geometry back to the spatial reference system of the sub grid
         intersect.TransformTo(grid_sr)
 
         # get envelope of the Geometry and cal the bounding tile of the
@@ -795,9 +790,9 @@ class Tile(object):
 
         returns
         -------
-        i : number
+        i : integer
             pixel row number
-        j : number
+        j : integer
             pixel column number
         """
 
