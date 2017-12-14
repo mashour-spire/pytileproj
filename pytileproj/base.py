@@ -364,15 +364,17 @@ class TiledProjectionSystem(object):
             If not found, return empty list.
         """
 
-        # common, global spatial reference system for boundary intersection
-        intersect_sr = osr.SpatialReference()
-        intersect_sr.ImportFromEPSG(4326)
-
+        # get subgrid ID
         subgrid = getattr(self, sgrid_id)
 
+        # get intersect area with subgrid in latlon
+        # TODO: check if double intersection is necessary
         intersect = geom.Intersection(geom.Intersection(subgrid.polygon_geog))
         if not intersect:
             return list()
+
+        # get spatial reference of subgrid in grid projection
+        grid_sr = subgrid.projection.osr_spref
 
         # transform intersection geometry back to the spatial reference system of the sub grid
         intersect.TransformTo(grid_sr)
