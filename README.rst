@@ -8,17 +8,18 @@ pytileproj
 .. image:: https://badge.fury.io/py/pytileproj.svg
     :target: https://badge.fury.io/py/pytileproj
 
-A python class for working with TiledProjectionSystems (TPS) - how to convert to - how to use a tiling system - etc.
+A python class for working with TiledProjectionSystems (TPS)
 
 
 Description
 ===========
 
-A LONGER DESCRIPTION OF YOUR PROJECT GOES HERE...
+It's a python package that handles the geometric and geographic operations of a gridded and tiled projection system.
+It was designed for data cubes ingesting satellite imagery and builds the basis for the Equi7Grid (see https://github
+.com/TUW-GEO/Equi7Grid).
 
 
 Note
 ====
 
-This project has been set up using PyScaffold 2.5.6. For details and usage
-information on PyScaffold see http://pyscaffold.readthedocs.org/.
+The project is work-in-progress. Handle with care! ;-)
