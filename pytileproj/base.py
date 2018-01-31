@@ -171,7 +171,6 @@ class TiledProjectionSystem(object):
             nametag, None, res, tiletype, tile_xsize_m, tile_ysize_m)
 
         self.subgrids = self.define_subgrids()
-        pass
 
     def __getattr__(self, item):
         '''
@@ -394,8 +393,10 @@ class TiledProjectionSystem(object):
         # get overlapped tiles
         overlapped_tiles = list()
 
-        xr = np.arange(x_min, x_max, self.core.tile_xsize_m)
-        yr = np.arange(y_min, y_max, self.core.tile_ysize_m)
+        xr = np.arange(
+            x_min, x_max + self.core.tile_xsize_m, self.core.tile_xsize_m)
+        yr = np.arange(
+            y_min, y_max + self.core.tile_ysize_m, self.core.tile_ysize_m)
 
         for x, y in itertools.product(xr, yr):
             geom_tile = geometry.extent2polygon(

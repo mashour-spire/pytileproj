@@ -32,6 +32,8 @@
 Code for osgeo geometry operations.
 """
 
+import numpy as np
+
 from osgeo import ogr
 from osgeo import osr
 
@@ -181,17 +183,17 @@ def extent2polygon(extent, epsg=None, wkt=None):
         project string in well known text format
 
     """
-    area = [(
-        extent[0], extent[1]), (
-            (extent[0] + extent[2]) / 2, extent[1]), (extent[2], extent[1]),
-        (extent[2], (extent[1] + extent[3]) / 2),
-            (extent[2], extent[3]), (
-                (extent[
-                    0] + extent[2]) / 2, extent[3]), (extent[0], extent[3]),
-            (extent[0], (extent[1] + extent[3]) / 2)]
+    area = [(extent[0], extent[1]),
+            ((extent[0] + extent[2]) / 2., extent[1]),
+            (extent[2], extent[1]),
+            (extent[2], (extent[1] + extent[3]) / 2.),
+            (extent[2], extent[3]),
+            ((extent[0] + extent[2]) / 2., extent[3]),
+            (extent[0], extent[3]),
+            (extent[0], (extent[1] + extent[3]) / 2.)]
 
     edge = ogr.Geometry(ogr.wkbLinearRing)
-    [edge.AddPoint(x, y) for x, y in area]
+    [edge.AddPoint(np.double(x), np.double(y)) for x, y in area]
     edge.CloseRings()
     geom_area = ogr.Geometry(ogr.wkbPolygon)
     geom_area.AddGeometry(edge)
