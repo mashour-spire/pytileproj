@@ -312,10 +312,12 @@ def translate_pixelmaps(spacing_fine, spacing_coarse, target_bbox, correct_bound
     # kx, ky:  number of patterns that bbox spans in x and y direction
     kx = int(xsize_f) / pattern_length_f
     ky = int(ysize_f) / pattern_length_f
-    idx = np.tile(pattern_tmpl, kx)
-    idy = np.tile(pattern_tmpl, ky)
-    idx += np.repeat(np.arange(kx) * len(pattern_f), pattern_length_f)
-    idy += np.repeat(np.arange(ky) * len(pattern_f), pattern_length_f)
+    idx = np.tile(pattern_tmpl, int(kx))
+    idy = np.tile(pattern_tmpl, int(ky))
+    idx += np.repeat(np.arange(kx, dtype=np.int64)
+                     * len(pattern_f), np.int(pattern_length_f))
+    idy += np.repeat(np.arange(ky, dtype=np.int64)
+                     * len(pattern_f), np.int(pattern_length_f))
 
     # create index array
     # TODO: transpose the index? flip the array upside-down?
