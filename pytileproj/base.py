@@ -378,13 +378,13 @@ class TiledProjectionSystem(object):
 
         # get envelope of the Geometry and cal the bounding tile of the
         envelope = intersect.GetEnvelope()
-        x_min = int(envelope[0]) / \
-            self.core.tile_xsize_m * self.core.tile_xsize_m
-        x_max = (int(envelope[1]) / self.core.tile_xsize_m + 1) * \
-            self.core.tile_xsize_m
-        y_min = int(envelope[2]) / \
-            self.core.tile_ysize_m * self.core.tile_ysize_m
-        y_max = (int(envelope[3]) / self.core.tile_ysize_m + 1) * \
+        x_min = int(envelope[0]) // self.core.tile_xsize_m \
+            * self.core.tile_xsize_m
+        x_max = (int(envelope[1]) // self.core.tile_xsize_m + 1) \
+            * self.core.tile_xsize_m
+        y_min = int(envelope[2]) // self.core.tile_ysize_m * \
+            self.core.tile_ysize_m
+        y_max = (int(envelope[3]) // self.core.tile_ysize_m + 1) * \
             self.core.tile_ysize_m
 
         # make sure x_min and y_min greater or equal 0
