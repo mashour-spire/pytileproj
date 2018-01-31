@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Vienna University of Technology (TU Wien), Department of
+# Copyright (c) 2018, Vienna University of Technology (TU Wien), Department of
 # Geodesy and Geoinformation (GEO).
 # All rights reserved.
 #
@@ -28,23 +28,12 @@
 # policies, either expressed or implied, of the FreeBSD Project.
 
 
-'''
-Created on March 7, 2017
-
+"""
 Code for osgeo geometry operations.
-
-@author: Bernhard Bauer-Marschallinger, bbm@geo.tuwien.ac.at
-
-'''
-
-
-
-
-
+"""
 
 from osgeo import ogr
 from osgeo import osr
-
 
 
 def uv2xy(src_ref, dst_ref, u, v):
@@ -52,6 +41,7 @@ def uv2xy(src_ref, dst_ref, u, v):
     tx = osr.CoordinateTransformation(src_ref, dst_ref)
     x, y, _ = tx.TransformPoint(u, v)
     return x, y
+
 
 def create_multipoint_geom(u, v, projection):
     geog_spref = projection.osr_spref
@@ -62,8 +52,8 @@ def create_multipoint_geom(u, v, projection):
         point.SetPoint(0, u[p], v[p])
         point_geom.AddGeometry(point)
 
-
     return point_geom
+
 
 def create_point_geom(u, v, projection):
     geog_spref = projection.osr_spref
@@ -118,6 +108,7 @@ def open_geometry(fname, format="shapefile"):
     ds, feature, geom, = None, None, None
     return out
 
+
 def write_geometry(geom, fname, format="shapefile"):
     """ write a geometry to a vector file.
 
@@ -138,7 +129,7 @@ def write_geometry(geom, fname, format="shapefile"):
     dst_layer = dst_ds.CreateLayer("out", srs=srs)
     fd = ogr.FieldDefn('DN', ogr.OFTInteger)
     dst_layer.CreateField(fd)
-    #dst_field = 0
+    # dst_field = 0
 
     feature = ogr.Feature(dst_layer.GetLayerDefn())
     feature.SetField("DN", 1)
@@ -148,6 +139,7 @@ def write_geometry(geom, fname, format="shapefile"):
     # clean tmp file
     dst_ds.Destroy()
     return
+
 
 def transform_geometry(geometry, projection):
     """
@@ -179,6 +171,7 @@ def get_geom_boundaries(geometry, rounding=1.0):
     limits = [int(x / rounding) * rounding for x in limits]
     return limits
 
+
 def extent2polygon(extent, epsg=None, wkt=None):
     """create a polygon geometry from extent.
 
@@ -188,10 +181,14 @@ def extent2polygon(extent, epsg=None, wkt=None):
         project string in well known text format
 
     """
-    area = [(extent[0], extent[1]), ((extent[0] + extent[2])/2, extent[1]), (extent[2], extent[1]),
-            (extent[2], (extent[1] + extent[3])/2),
-            (extent[2], extent[3]), ((extent[0] + extent[2])/2, extent[3]), (extent[0], extent[3]),
-            (extent[0], (extent[1] + extent[3])/2)]
+    area = [(
+        extent[0], extent[1]), (
+            (extent[0] + extent[2]) / 2, extent[1]), (extent[2], extent[1]),
+        (extent[2], (extent[1] + extent[3]) / 2),
+            (extent[2], extent[3]), (
+                (extent[
+                    0] + extent[2]) / 2, extent[3]), (extent[0], extent[3]),
+            (extent[0], (extent[1] + extent[3]) / 2)]
 
     edge = ogr.Geometry(ogr.wkbLinearRing)
     [edge.AddPoint(x, y) for x, y in area]
