@@ -393,9 +393,11 @@ class TiledProjectionSystem(object):
 
         # get overlapped tiles
         overlapped_tiles = list()
-        for x, y in itertools.product(
-            range(x_min, x_max, self.core.tile_xsize_m),
-                                      range(y_min, y_max, self.core.tile_ysize_m)):
+
+        xr = np.arange(x_min, x_max, self.core.tile_xsize_m)
+        yr = np.arange(y_min, y_max, self.core.tile_ysize_m)
+
+        for x, y in itertools.product(xr, yr):
             geom_tile = geometry.extent2polygon(
                 (x, y, x + self.core.tile_xsize_m,
                  y + self.core.tile_xsize_m))
