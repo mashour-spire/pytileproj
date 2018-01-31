@@ -724,7 +724,7 @@ class Tile(object):
         _max = [self.x_size_px, self.y_size_px, self.x_size_px, self.y_size_px]
 
         for l, limit in enumerate(limits):
-            if (limit < 0) or (limit > _max):
+            if (limit < 0) or (limit > _max[l]):
                 raise ValueError('{} is out of bounds!'.format(string[l]))
 
         xmin, ymin, xmax, ymax = limits
