@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Vienna University of Technology (TU Wien), Department of
+# Copyright (c) 2018, Vienna University of Technology (TU Wien), Department of
 # Geodesy and Geoinformation (GEO).
 # All rights reserved.
 #
@@ -28,22 +28,18 @@
 # policies, either expressed or implied, of the FreeBSD Project.
 
 
-'''
-Created on September 26, 2017
-
+"""
 Code for converting raster images to TPS grids.
-
-@author: Bernhard Bauer-Marschallinger, bbm@geo.tuwien.ac.at
-
-'''
+"""
 
 import os
 import errno
 
 from osgeo import osr
 
-import gdalport
-import geometry
+import pytileproj.gdalport as gdalport
+import pytileproj.geometry as geometry
+
 
 def warp2tiledgeotiff(TPS, image, output_dir,
                       gdal_path=None, subgrid_ids=None,
@@ -53,7 +49,6 @@ def warp2tiledgeotiff(TPS, image, output_dir,
                       compress=True, compresstype="LZW", resampling_type="near",
                       overwrite=False, image_nodata=None, tile_nodata=None,
                       tiledtiff=True, blocksize=512):
-
     """warp the image to tiles in target TPS.
 
 
@@ -114,8 +109,8 @@ def warp2tiledgeotiff(TPS, image, output_dir,
             if accurate_boundary:
                 try:
                     roi_geom = gdalport.retrieve_raster_boundary(image,
-                                                        gdal_path=gdal_path,
-                                                        nodata=image_nodata)
+                                                                 gdal_path=gdal_path,
+                                                                 nodata=image_nodata)
                 except Exception as e:
                     print("retrieve_raster_boundary failed:", str(e))
                     roi_geom = None
@@ -169,7 +164,8 @@ def warp2tiledgeotiff(TPS, image, output_dir,
         filename = os.path.join(tile_path, "".join((outbasename, ".tif")))
 
         # get grid tile object
-        # TODO Generalise! Now only the Equi7Grid case is consideres (2 digits for subgrid)
+        # TODO Generalise! Now only the Equi7Grid case is consideres (2 digits
+        # for subgrid)
         gridtile = getattr(grid, ftile[0:2]).tilesys.create_tile(ftile)
 
         # prepare options for gdalwarp

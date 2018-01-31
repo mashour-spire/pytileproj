@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Vienna University of Technology (TU Wien), Department of
+# Copyright (c) 2018, Vienna University of Technology (TU Wien), Department of
 # Geodesy and Geoinformation (GEO).
 # All rights reserved.
 #
@@ -28,18 +28,12 @@
 # policies, either expressed or implied, of the FreeBSD Project.
 
 
-'''
-Created on March 14, 2017
-
+"""
 Code for downsampling an array-based image to a smaller array-based image.
 
 Is fast through intelligent pixel averaging.
 Gives physical meaningful results through proper filtering.
-
-@author: Bernhard Bauer-Marschallinger, bbm@geo.tuwien.ac.at
-
-'''
-
+"""
 
 import fractions
 import math
@@ -66,8 +60,8 @@ class PixelDownsampler(object):
         self.target_bbox = bbox
 
         pixelmap_fine, pixelmap_coarse, \
-        pixel_count, n_cum_x, n_cum_y, \
-        needed_bbox, needed_shape = self._translate_pixelmaps()
+            pixel_count, n_cum_x, n_cum_y, \
+            needed_bbox, needed_shape = self._translate_pixelmaps()
 
         self.pixelmap_fine = pixelmap_fine
         self.pixelmap_coarse = pixelmap_coarse
@@ -83,7 +77,8 @@ class PixelDownsampler(object):
     def _fast_mask_counting(self, mask):
         return fast_mask_counting(mask, self.pixelmap_coarse.shape, self.n_cum_x, self.n_cum_y)
 
-    def downsample_via_pixel_indices(self, array, apply_filtering=True, no_data_value=-9999.0,
+    def downsample_via_pixel_indices(
+        self, array, apply_filtering=True, no_data_value=-9999.0,
                                       pre_function=None, post_function=None):
         """ downsample with pixel averaging and consecutive filtering.
 
@@ -93,13 +88,14 @@ class PixelDownsampler(object):
         """
 
         # TODO:
-        # implement ghosting-reader (read buffer around target area), then set this to True
+        # implement ghosting-reader (read buffer around target area), then set
+        # this to True
         correct_boundary = False
 
         needed_shape = copy.copy(self.pixelmap_fine.shape)
         if array.shape != needed_shape:
-            raise ValueError('Input "array" must have shape={}!'.format(self.needed_shape))
-
+            raise ValueError(
+                'Input "array" must have shape={}!'.format(self.needed_shape))
 
         no_data_value = no_data_value
         datatype = array.dtype
@@ -114,7 +110,7 @@ class PixelDownsampler(object):
         nan_uint32 = np.iinfo(np.uint32).max
         # create a mask of NaN values in LUT index array
         mask = np.logical_or(np.isnan(array), (array == no_data_value))
-        #mask = np.isnan(array)
+        # mask = np.isnan(array)
         # applying mask
         pixelmap_fine[mask] = nan_uint32
 
@@ -129,7 +125,8 @@ class PixelDownsampler(object):
         ide = pixelmap_coarse[id_enough]
 
         # resample parameter (do the pixel averaging) to target grid
-        array_ds = np.ndarray.ravel(np.full(pixelmap_coarse.shape, np.nan, np.float32))
+        array_ds = np.ndarray.ravel(
+            np.full(pixelmap_coarse.shape, np.nan, np.float32))
         array_ds[ide] = ndimage.mean(array, labels=pixelmap_fine, index=ide)
         array_ds = array_ds.reshape(pixelmap_coarse.shape)
 
@@ -137,7 +134,8 @@ class PixelDownsampler(object):
             # encode
             array_en = array_ds.astype(np.float32)
             # apply Gaussian filter
-            array_out = downsampling_gauss_filter(array_en, no_data_value=no_data_value)
+            array_out = downsampling_gauss_filter(
+                array_en, no_data_value=no_data_value)
         else:
             array_out = array_ds
 
@@ -146,7 +144,8 @@ class PixelDownsampler(object):
 
         # clip to target bbox
         if correct_boundary == True:
-            g = [(a - b)/self.spacing_coarse for a, b in zip(self.target_bbox, self.needed_bbox)]
+            g = [(a - b) / self.spacing_coarse for a,
+                 b in zip(self.target_bbox, self.needed_bbox)]
             array_out = array_out[g[0]:g[2], g[1]:g[3]]
 
         return array_out
@@ -163,9 +162,11 @@ def downsampling_gauss_filter(array, no_data_value=None, use_hard_coded_kernel=T
         kernel.gauss_weightratio_kernel()
         gauss_kernel = kernel.array
     else:
-        gauss_kernel = np.array([(0.04973561603529225, 0.12354360159590561, 0.04973561603529225),
-                                 (0.12354360159590561, 0.30688312947520852, 0.12354360159590561),
-                                 (0.04973561603529225, 0.12354360159590561, 0.04973561603529225)])
+        gauss_kernel = np.array(
+            [(0.04973561603529225, 0.12354360159590561, 0.04973561603529225),
+             (0.12354360159590561,
+              0.30688312947520852, 0.12354360159590561),
+             (0.04973561603529225, 0.12354360159590561, 0.04973561603529225)])
 
     # apply Gaussian filter
     array_conv = convolve(array, gauss_kernel, boundary='extend')
@@ -265,7 +266,7 @@ def calc_pixel_index_pattern(spacing_fine, spacing_coarse):
 
 def translate_pixelmaps(spacing_fine, spacing_coarse, target_bbox, correct_boundary=False):
 
-    #TODO:
+    # TODO:
     # implement ghosting-reader (read buffer around target area), then set this to True
     # correct_boundary = True
 
@@ -343,11 +344,10 @@ def translate_pixelmaps(spacing_fine, spacing_coarse, target_bbox, correct_bound
         temp_idy = np.append(pixelmap_fine[0, 1:] - pixelmap_fine[0, :-1], 1)
         temp_id_2d = np.outer(temp_idx, temp_idy)
         pixelmap_coarse = pixelmap_fine[temp_id_2d.astype(bool)]
-        pixelmap_coarse = pixelmap_coarse.reshape(int(len(temp_idx)/ratio), int(len(temp_idy)/ratio))
-
+        pixelmap_coarse = pixelmap_coarse.reshape(
+            int(len(temp_idx) / ratio), int(len(temp_idy) / ratio))
 
     return pixelmap_fine, pixelmap_coarse, pix_count, cum_pixels_x, cum_pixels_y, needed_bbox, needed_shape
-
 
 
 def dummy_function(array):

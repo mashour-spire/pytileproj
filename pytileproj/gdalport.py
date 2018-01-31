@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Vienna University of Technology (TU Wien), Department of
+# Copyright (c) 2018, Vienna University of Technology (TU Wien), Department of
 # Geodesy and Geoinformation (GEO).
 # All rights reserved.
 #
@@ -28,16 +28,10 @@
 # policies, either expressed or implied, of the FreeBSD Project.
 
 
-'''
-Created on November 05, 2015
-
+"""
 A sample class and Some handy functions for using gdal library to read/write
 data
-
-@author: Bernhard Bauer-Marschallinger, bbm@geo.tuwien.ac.at
-
-'''
-
+"""
 
 import os
 import subprocess
@@ -50,6 +44,7 @@ from itertools import cycle
 
 from datetime import datetime
 from scipy import ndimage
+
 
 class GdalImage:
 
@@ -117,7 +112,6 @@ class GdalImage:
         if band_idx < 1 or band_idx > self.dataset.RasterCount:
             raise IndexError("band index is out of range")
         return self.dataset.GetRasterBand(band_idx).GetNoDataValue()
-
 
     def get_raster_nodata(self):
         """get the nodata value for all bands in a list
@@ -203,8 +197,6 @@ class GdalImage:
         x, y = self.coords2pixel(l1, l2)
 
         return x >= 0 and x < self.XSize() and y >= 0 and y < self.YSize()
-
-
 
 
 def open_image(filename):
@@ -404,12 +396,14 @@ def write_image(image, filename, frmt="GTiff", nodata=None,
         ds.GetRasterBand(1).WriteArray(image, 0, 0)
     else:
         for i in range(ds.RasterCount):
-            ds.GetRasterBand(i + 1).WriteArray(image[i] if dtype is None else image[i].astype(dtype), 0, 0)
+            ds.GetRasterBand(i + 1).WriteArray(
+                image[i] if dtype is None else image[i].astype(dtype), 0, 0)
 
     ds.FlushCache()
     # set nodata for each band
     if nodata is not None:
-        assert ds.RasterCount == len(nodata) or len(nodata) == 1, "Mismatch of nodata values and RasterCount"
+        assert ds.RasterCount == len(nodata) or len(
+            nodata) == 1, "Mismatch of nodata values and RasterCount"
         for i, val in izip(range(ds.RasterCount), cycle(nodata)):
             ds.GetRasterBand(i + 1).SetNoDataValue(val)
 
@@ -418,15 +412,13 @@ def write_image(image, filename, frmt="GTiff", nodata=None,
         ct = gdal.ColorTable()
         for i, color in enumerate(colormap):
             if len(color) == 3:
-                color = list(color) + [0,]
+                color = list(color) + [0, ]
             ct.SetColorEntry(i, tuple(color))
 
         for i in range(ds.RasterCount):
             ds.GetRasterBand(i + 1).SetRasterColorTable(ct)
 
     return ds
-
-
 
 
 def call_gdal_util(util_name, gdal_path=None, src_files=None, dst_file=None,
@@ -551,7 +543,7 @@ def retrieve_raster_boundary(infile, gdal_path=None, nodata=None, outfile=None):
     img_extent = img_ds.get_extent()
     img_ds = None
     qlook_size = 400.0
-    factor = int(np.round(max(width/qlook_size, height/qlook_size)))
+    factor = int(np.round(max(width / qlook_size, height / qlook_size)))
     x_res = img_geot[1] * factor
     y_res = img_geot[5] * factor
 
@@ -560,8 +552,8 @@ def retrieve_raster_boundary(infile, gdal_path=None, nodata=None, outfile=None):
                '-te': " ".join(map(str, img_extent)),
                '-tr': "{} -{}".format(x_res, np.abs(y_res)),
                '-co': "COMPRESS=LZW",
-               '-srcnodata' : nodata,
-               '-dstnodata' : nodata
+               '-srcnodata': nodata,
+               '-dstnodata': nodata
                }
 
     succeed, _ = call_gdal_util('gdalwarp', src_files=infile,
@@ -629,4 +621,3 @@ def retrieve_raster_boundary(infile, gdal_path=None, nodata=None, outfile=None):
     os.remove(qlook)
 
     return geom
-

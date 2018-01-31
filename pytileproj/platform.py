@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Vienna University of Technology (TU Wien), Department of
+# Copyright (c) 2018, Vienna University of Technology (TU Wien), Department of
 # Geodesy and Geoinformation (GEO).
 # All rights reserved.
 #
@@ -27,14 +27,6 @@
 # those of the authors and should not be interpreted as representing official
 # policies, either expressed or implied, of the FreeBSD Project.
 
-'''
-Created On 2015-09-14 Mon 11:20:49
-
-fuctions for parrallism
-
-@author: Senmao Cao senmao.cao@geo.tuwien.ac.at
-'''
-
 
 import os as _os
 import errno
@@ -62,8 +54,6 @@ def mkdir(name):
         if e.errno != errno.EEXIST:
             raise
 
+
 def system():
     return _platform[0:3]
-
-
-
