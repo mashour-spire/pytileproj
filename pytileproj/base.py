@@ -526,8 +526,8 @@ class TilingSystem(object):
         return
 
     def round_xy2lowerleft(self, x0, y0):
-        llx = x0 / self.core.tile_xsize_m * self.core.tile_xsize_m
-        lly = y0 / self.core.tile_ysize_m * self.core.tile_ysize_m
+        llx = x0 // self.core.tile_xsize_m * self.core.tile_xsize_m
+        lly = y0 // self.core.tile_ysize_m * self.core.tile_ysize_m
         return llx, lly
 
     @abc.abstractmethod
