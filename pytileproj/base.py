@@ -280,9 +280,12 @@ class TiledProjectionSystem(object):
         geom_area : geometry
             a polygon or multipolygon geometery object representing the ROI
         extent : list
-            It is a polygon representing the rectangle region of interest
-            in the format of [xmin, ymin, xmax, ymax].
-        epsg : str
+            It is a list of coordinates representing either
+                a) the rectangle-region-of-interest in the format of
+                    [xmin, ymin, xmax, ymax]
+                b) the tuple-list of points-of-intererst in the format of
+                    [(x1, y1), (x2, y2), ...]
+        epsg : int
             EPSG CODE defining the spatial reference system, in which
             the geometry or extent is given. Default is LatLon (EPSG:4326)
         subgrid_ids : list
@@ -504,14 +507,15 @@ class TilingSystem(object):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, core, polygon_proj, x0, y0):
+    def __init__(self, core, polygon_geog, x0, y0):
 
         self.core = core
         self.x0 = x0
         self.y0 = y0
         self.xstep = self.core.tile_xsize_m
         self.ystep = self.core.tile_ysize_m
-        self.polygon_proj = polygon_proj
+        self.polygon_proj = geometry.transform_geometry(
+            polygon_geog, self.core.projection)
         self.bbox_proj = geometry.get_geom_boundaries(
             self.polygon_proj, rounding=self.core.res)
 

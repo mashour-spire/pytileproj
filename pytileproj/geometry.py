@@ -169,6 +169,19 @@ def transform_geometry(geometry, projection):
 
 
 def get_geom_boundaries(geometry, rounding=1.0):
+    """
+    returns the envelope of the geometry
+
+    Parameters
+    ----------
+    geometry : Geometry
+        geometry object
+    rounding : float
+        prec
+    Returns
+    -------
+
+    """
     limits = geometry.GetEnvelope()
     limits = [int(x / rounding) * rounding for x in limits]
     return limits
@@ -178,32 +191,77 @@ def extent2polygon(extent, epsg=None, wkt=None):
     """create a polygon geometry from extent.
 
     extent : list
-        extent in terms of [xmin, ymin, xmax, ymax]
+        list of coordinates representing either
+            a) the rectangle-region-of-interest in the format of
+                [xmin, ymin, xmax, ymax]
+            b) the list of points-of-interest in the format of
+                [(x1, y1), (x2, y2), ...]
+    epsg : int
+        EPSG code defining the spatial reference system, in which
+        the extent is given. Default is LatLon (EPSG:4326)
     wkt : string
-        project string in well known text format
+        projection string, in well known text format, in which
+        the extent is given.
+    """
+
+    if isinstance(extent[0], tuple):
+        geom_area = _extent2points(extent, epsg=epsg, wkt=wkt)
+    else:
+        area = [(extent[0], extent[1]),
+                ((extent[0] + extent[2]) / 2., extent[1]),
+                (extent[2], extent[1]),
+                (extent[2], (extent[1] + extent[3]) / 2.),
+                (extent[2], extent[3]),
+                ((extent[0] + extent[2]) / 2., extent[3]),
+                (extent[0], extent[3]),
+                (extent[0], (extent[1] + extent[3]) / 2.)]
+
+        edge = ogr.Geometry(ogr.wkbLinearRing)
+        [edge.AddPoint(np.double(x), np.double(y)) for x, y in area]
+        edge.CloseRings()
+        geom_area = ogr.Geometry(ogr.wkbPolygon)
+        geom_area.AddGeometry(edge)
+        if epsg:
+            geo_sr = osr.SpatialReference()
+            geo_sr.ImportFromEPSG(epsg)
+            geom_area.AssignSpatialReference(geo_sr)
+        if wkt:
+            geo_sr = osr.SpatialReference()
+            geo_sr.ImportFromWkt(wkt)
+            geom_area.AssignSpatialReference(geo_sr)
+
+    return geom_area
+
+
+def _extent2points(coords, epsg=None, wkt=None):
+    """create a point geometry from tuples of coordinates.
+
+    coords : list of tuples
+        point-coords in terms of [(x1, y1), (x2, y2), ...]
+    epsg : int
+        EPSG code defining the spatial reference system, in which
+        the coords are given. Default is LatLon (EPSG:4326)
+    wkt : string
+        projection string, in well known text format, in which
+        the coords are given.
 
     """
-    area = [(extent[0], extent[1]),
-            ((extent[0] + extent[2]) / 2., extent[1]),
-            (extent[2], extent[1]),
-            (extent[2], (extent[1] + extent[3]) / 2.),
-            (extent[2], extent[3]),
-            ((extent[0] + extent[2]) / 2., extent[3]),
-            (extent[0], extent[3]),
-            (extent[0], (extent[1] + extent[3]) / 2.)]
+    points = ogr.Geometry(ogr.wkbMultiPoint)
 
-    edge = ogr.Geometry(ogr.wkbLinearRing)
-    [edge.AddPoint(np.double(x), np.double(y)) for x, y in area]
-    edge.CloseRings()
-    geom_area = ogr.Geometry(ogr.wkbPolygon)
-    geom_area.AddGeometry(edge)
+    for co in coords:
+        if len(co) == 2:
+            p = ogr.Geometry(ogr.wkbPoint)
+            p.AddPoint(co[0], co[1])
+            points.AddGeometry(p)
+            p = None
+
     if epsg:
         geo_sr = osr.SpatialReference()
         geo_sr.ImportFromEPSG(epsg)
-        geom_area.AssignSpatialReference(geo_sr)
+        points.AssignSpatialReference(geo_sr)
     if wkt:
         geo_sr = osr.SpatialReference()
         geo_sr.ImportFromWkt(wkt)
-        geom_area.AssignSpatialReference(geo_sr)
+        points.AssignSpatialReference(geo_sr)
 
-    return geom_area
+    return points
