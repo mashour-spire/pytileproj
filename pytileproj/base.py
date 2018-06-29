@@ -218,20 +218,20 @@ class TiledProjectionSystem(object):
 
     def _lonlat2xy(self, lon, lat):
         """
-        finds overlapping subgrids of given geometry and computes the projected coordinates
+        finds overlapping subgrids of given geometry and computes the
+        projected coordinates
         """
         # create point geometry
         lonlatprojection = TPSProjection(epsg=4326)
-        point_geom = geometry.create_point_geom(lon, lat, lonlatprojection)
+        point_geom = geometry.create_point_geom(lon, lat,
+                                                lonlatprojection.osr_spref)
 
         # search for co-locating subgrid
         subgrid = self.locate_geometry_in_subgrids(point_geom)[0]
 
-        x, y, = geometry.uv2xy(lonlatprojection.osr_spref,
-                               self.subgrids[
-                                   subgrid].core.projection.osr_spref,
-                               lon,
-                               lat)
+        x, y, = geometry.uv2xy(lon, lat,
+                               lonlatprojection.osr_spref,
+                               self.subgrids[subgrid].core.projection.osr_spref)
 
         return np.full_like(x, subgrid, dtype=(np.str, len(subgrid))), x, y
 
@@ -267,8 +267,7 @@ class TiledProjectionSystem(object):
     def search_tiles_in_geo_roi(self,
                                 geom_area=None,
                                 extent=None,
-                                epsg=4326,
-                                wkt=None,
+                                osr_spref=None,
                                 subgrid_ids=None,
                                 coverland=False,
                                 gdal_path=None):
@@ -285,9 +284,8 @@ class TiledProjectionSystem(object):
                     [xmin, ymin, xmax, ymax]
                 b) the tuple-list of points-of-intererst in the format of
                     [(x1, y1), (x2, y2), ...]
-        epsg : int
-            EPSG CODE defining the spatial reference system, in which
-            the geometry or extent is given. Default is LatLon (EPSG:4326)
+        osr_spref : OGRSpatialReference
+            spatial reference of input coordinates in extent
         subgrid_ids : list
             grid ID to specified which continents you want to search. Default
             value is None for searching all continents.
@@ -315,13 +313,10 @@ class TiledProjectionSystem(object):
 
         # obtain the geometry of ROI
         if not geom_area:
-            if epsg is not None:
-                geom_area = geometry.extent2polygon(extent, epsg=epsg)
-            elif wkt is not None:
-                geom_area = geometry.extent2polygon(extent, wkt=wkt)
-            else:
-                raise ValueError(
-                    "Error: either epsg or wkt of ROI coordinates must be defined!")
+            if osr_spref is None:
+                projection = TPSProjection(epsg=4326)
+                osr_spref = projection.osr_spref
+            geom_area = geometry.extent2polygon(extent, osr_spref)
 
         # load lat-lon spatial reference as the default
         geo_sr = TPSProjection(epsg=4326).osr_spref
@@ -404,7 +399,7 @@ class TiledProjectionSystem(object):
         for x, y in itertools.product(xr, yr):
             geom_tile = geometry.extent2polygon(
                 (x, y, x + self.core.tile_xsize_m,
-                 y + self.core.tile_xsize_m))
+                 y + self.core.tile_xsize_m), grid_sr)
             if geom_tile.Intersects(intersect):
                 ftile = subgrid.tilesys.point2tilename(x, y)
                 if not coverland or subgrid.tilesys.check_land_coverage(ftile):
@@ -439,7 +434,7 @@ class TiledProjection(object):
             polygon_geog = GlobalTile(self.core.projection).polygon()
         self.polygon_geog = polygon_geog
         self.polygon_proj = geometry.transform_geometry(
-            polygon_geog, self.core.projection)
+            polygon_geog, self.core.projection.osr_spref)
         self.bbox_geog = geometry.get_geom_boundaries(
             self.polygon_geog, rounding=self.core.res / 1000000.0)
         self.bbox_proj = geometry.get_geom_boundaries(
@@ -515,7 +510,7 @@ class TilingSystem(object):
         self.xstep = self.core.tile_xsize_m
         self.ystep = self.core.tile_ysize_m
         self.polygon_proj = geometry.transform_geometry(
-            polygon_geog, self.core.projection)
+            polygon_geog, self.core.projection.osr_spref)
         self.bbox_proj = geometry.get_geom_boundaries(
             self.polygon_proj, rounding=self.core.res)
 

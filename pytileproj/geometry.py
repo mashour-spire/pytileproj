@@ -37,53 +37,103 @@ import numpy as np
 from osgeo import ogr
 from osgeo import osr
 
+def uv2xy(u, v, src_ref, dst_ref):
+    """
+    wrapper; reprojects a pair of point coordinates
+    Parameters
+    ----------
+    u : number
+        input coordinate ("Rechtswert")
+    v : number
+        input coordinate ("Hochwert")
+    src_ref : SpatialReference
+        osgeo spatial reference defining the input u, v coordinates
+    dst_ref : SpatialReference
+        osgeo spatial reference defining the output x, y coordinates
 
-def uv2xy(src_ref, dst_ref, u, v):
-    # tranform the point
+    Returns
+    -------
+    x : number
+        output coordinate ("Rechtswert")
+    y : : number
+        output coordinate ("Hochwert")
+    """
     tx = osr.CoordinateTransformation(src_ref, dst_ref)
     x, y, _ = tx.TransformPoint(u, v)
     return x, y
 
 
-def create_multipoint_geom(u, v, projection):
-    geog_spref = projection.osr_spref
+def create_multipoint_geom(u, v, osr_spref):
+    """
+    wrapper; creates multipoint geometry in given projection
+    Parameters
+    ----------
+    u : list of numbers
+        input coordinates ("Rechtswert")
+    v : list of numbers
+        input coordinates ("Hochwert")
+    osr_spref : OGRSpatialReference
+        spatial reference of given coordinates
+
+    Return
+    ------
+    OGRGeometry
+        a geometry holding all points defined by (u, v)
+
+    """
     point_geom = ogr.Geometry(ogr.wkbMultiPoint)
-    point_geom.AssignSpatialReference(geog_spref)
+    point_geom.AssignSpatialReference(osr_spref)
     for p, _ in enumerate(u):
         point = ogr.Geometry(ogr.wkbPoint)
-        point.SetPoint(0, u[p], v[p])
+        point.AddPoint(u[p], v[p], 0)
         point_geom.AddGeometry(point)
 
     return point_geom
 
 
-def create_point_geom(u, v, projection):
-    geog_spref = projection.osr_spref
-    point_geom = ogr.Geometry(ogr.wkbPoint)
-    point_geom.AddPoint(u, v)
-    point_geom.AssignSpatialReference(geog_spref)
-
-    return point_geom
-
-
-def create_wkt_geometry(geometry_wkt, epsg=4326):
+def create_point_geom(u, v, osr_spref):
     """
-    return extent geometry
+    wrapper; creates single point geometry in given projection
 
     Parameters
     ----------
-    geometry_wkt : string
+    u : list of numbers
+        input coordinates ("Rechtswert")
+    v : list of numbers
+        input coordinates ("Hochwert")
+    osr_spref : OGRSpatialReference
+        spatial reference of given coordinates
+
+    Return
+    ------
+    OGRGeometry
+        a geometry holding point defined by (u, v)
+
+    """
+    point_geom = ogr.Geometry(ogr.wkbPoint)
+    point_geom.AddPoint(u, v)
+    point_geom.AssignSpatialReference(osr_spref)
+
+    return point_geom
+
+def create_geometry_from_wkt(wkt_multipolygon, epsg=4326):
+    """
+    return extent geometry from multipolygon defined by wkt string
+
+    Parameters
+    ----------
+    wkt_multipolygon : string
         WKT text containing points of geometry (e.g. polygon)
     epsg : int
         EPSG code of spatial reference of the points.
 
     Return
     ------
-    OGRGeomtery
-        a geometry representing the extent_m of given sub-grid
+    OGRGeometry
+        a geometry holding the multipolygon and spatial reference
 
     """
-    geom = ogr.CreateGeometryFromWkt(geometry_wkt)
+    geom = ogr.CreateGeometryFromWkt(wkt_multipolygon)
     geo_sr = osr.SpatialReference()
     geo_sr.SetWellKnownGeogCS("EPSG:{}".format(str(epsg)))
     geom.AssignSpatialReference(geo_sr)
@@ -107,12 +157,13 @@ def open_geometry(fname, format="shapefile"):
     geom = feature.GetGeometryRef()
 
     out = geom.Clone()
-    ds, feature, geom, = None, None, None
+    ds, feature, geom = None, None, None
     return out
 
 
 def write_geometry(geom, fname, format="shapefile"):
-    """ write a geometry to a vector file.
+    """
+    writes a geometry to a vector file.
 
     parameters
     ----------
@@ -131,39 +182,36 @@ def write_geometry(geom, fname, format="shapefile"):
     dst_layer = dst_ds.CreateLayer("out", srs=srs)
     fd = ogr.FieldDefn('DN', ogr.OFTInteger)
     dst_layer.CreateField(fd)
-    # dst_field = 0
 
     feature = ogr.Feature(dst_layer.GetLayerDefn())
     feature.SetField("DN", 1)
     feature.SetGeometry(geom)
     dst_layer.CreateFeature(feature)
-    feature.Destroy()
-    # clean tmp file
-    dst_ds.Destroy()
+
+    dst_ds, feature, geom = None, None, None
     return
 
 
-def transform_geometry(geometry, projection):
+def transform_geometry(geometry, osr_spref):
     """
     return extent geometry
 
     Parameters
     ----------
-    geometry_wkt : string
-        WKT text containing points of geometry (e.g. polygon)
-    epsg : int
-        EPSG code of spatial reference of the points.
+    geometry : OGRGeomtery
+        geometry object
+    osr_spref : OGRSpatialReference
+        spatial reference to what the geometry should be transformed to
 
     Return
     ------
     OGRGeomtery
-        a geometry representing the extent_m of given sub-grid
+        a geometry represented in the target spatial reference
 
     """
 
-    out_srs = projection.osr_spref
     geometry_out = geometry.Clone()
-    geometry_out.TransformTo(out_srs)
+    geometry_out.TransformTo(osr_spref)
     geometry = None
     return geometry_out
 
@@ -177,9 +225,11 @@ def get_geom_boundaries(geometry, rounding=1.0):
     geometry : Geometry
         geometry object
     rounding : float
-        prec
+        precision
     Returns
     -------
+    list of numbers
+        rounded coordinates of geometry-envelope
 
     """
     limits = geometry.GetEnvelope()
@@ -187,7 +237,7 @@ def get_geom_boundaries(geometry, rounding=1.0):
     return limits
 
 
-def extent2polygon(extent, epsg=None, wkt=None):
+def extent2polygon(extent, osr_spref):
     """create a polygon geometry from extent.
 
     extent : list
@@ -196,16 +246,12 @@ def extent2polygon(extent, epsg=None, wkt=None):
                 [xmin, ymin, xmax, ymax]
             b) the list of points-of-interest in the format of
                 [(x1, y1), (x2, y2), ...]
-    epsg : int
-        EPSG code defining the spatial reference system, in which
-        the extent is given. Default is LatLon (EPSG:4326)
-    wkt : string
-        projection string, in well known text format, in which
-        the extent is given.
+    osr_spref : OGRSpatialReference
+        spatial reference of the coordinates in extent
     """
 
     if isinstance(extent[0], tuple):
-        geom_area = _extent2points(extent, epsg=epsg, wkt=wkt)
+        geom_area = _points2geometry(extent, osr_spref)
     else:
         area = [(extent[0], extent[1]),
                 ((extent[0] + extent[2]) / 2., extent[1]),
@@ -221,47 +267,26 @@ def extent2polygon(extent, epsg=None, wkt=None):
         edge.CloseRings()
         geom_area = ogr.Geometry(ogr.wkbPolygon)
         geom_area.AddGeometry(edge)
-        if epsg:
-            geo_sr = osr.SpatialReference()
-            geo_sr.ImportFromEPSG(epsg)
-            geom_area.AssignSpatialReference(geo_sr)
-        if wkt:
-            geo_sr = osr.SpatialReference()
-            geo_sr.ImportFromWkt(wkt)
-            geom_area.AssignSpatialReference(geo_sr)
+
+        geom_area.AssignSpatialReference(osr_spref)
 
     return geom_area
 
 
-def _extent2points(coords, epsg=None, wkt=None):
-    """create a point geometry from tuples of coordinates.
+def _points2geometry(coords, osr_spref):
+    """create a point geometry from a list of coordinate-tuples
 
     coords : list of tuples
         point-coords in terms of [(x1, y1), (x2, y2), ...]
-    epsg : int
-        EPSG code defining the spatial reference system, in which
-        the coords are given. Default is LatLon (EPSG:4326)
-    wkt : string
-        projection string, in well known text format, in which
-        the coords are given.
+    osr_spref : OGRSpatialReference
+        spatial reference of the coordinates in extent
 
     """
-    points = ogr.Geometry(ogr.wkbMultiPoint)
-
+    u = []
+    v = []
     for co in coords:
         if len(co) == 2:
-            p = ogr.Geometry(ogr.wkbPoint)
-            p.AddPoint(co[0], co[1])
-            points.AddGeometry(p)
-            p = None
+            u.append(co[0])
+            v.append(co[1])
 
-    if epsg:
-        geo_sr = osr.SpatialReference()
-        geo_sr.ImportFromEPSG(epsg)
-        points.AssignSpatialReference(geo_sr)
-    if wkt:
-        geo_sr = osr.SpatialReference()
-        geo_sr.ImportFromWkt(wkt)
-        points.AssignSpatialReference(geo_sr)
-
-    return points
+    return create_multipoint_geom(u, v, osr_spref)
