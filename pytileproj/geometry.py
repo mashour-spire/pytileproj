@@ -75,8 +75,8 @@ def create_multipoint_geom(u, v, osr_spref):
     osr_spref : OGRSpatialReference
         spatial reference of given coordinates
 
-    Return
-    ------
+    Returns
+    -------
     OGRGeometry
         a geometry holding all points defined by (u, v)
 
@@ -116,7 +116,7 @@ def create_point_geom(u, v, osr_spref):
 
     return point_geom
 
-def create_geometry_from_wkt(wkt_multipolygon, epsg=4326):
+def create_geometry_from_wkt(wkt_multipolygon, epsg=4326, segment=None):
     """
     return extent geometry from multipolygon defined by wkt string
 
@@ -126,6 +126,9 @@ def create_geometry_from_wkt(wkt_multipolygon, epsg=4326):
         WKT text containing points of geometry (e.g. polygon)
     epsg : int
         EPSG code of spatial reference of the points.
+    segment : float
+        for precision: distance of longest segment of the geometry polygon
+        in units of input osr_spref (defined by epsg)
 
     Return
     ------
@@ -137,6 +140,11 @@ def create_geometry_from_wkt(wkt_multipolygon, epsg=4326):
     geo_sr = osr.SpatialReference()
     geo_sr.SetWellKnownGeogCS("EPSG:{}".format(str(epsg)))
     geom.AssignSpatialReference(geo_sr)
+
+    # modify the geometry such it has no segment longer then the given distance
+    if segment is not None:
+        geom.Segmentize(segment)
+
     return geom
 
 
@@ -161,7 +169,7 @@ def open_geometry(fname, format="shapefile"):
     return out
 
 
-def write_geometry(geom, fname, format="shapefile"):
+def write_geometry(geom, fname, format="shapefile", segment=None):
     """
     writes a geometry to a vector file.
 
@@ -173,6 +181,9 @@ def write_geometry(geom, fname, format="shapefile"):
         full path of the output file name
     format : string
         format name. currently only shape file is supported
+    segment : float
+        for precision: distance of longest segment of the geometry polygon
+        in units of input osr_spref
     """
 
     drv = ogr.GetDriverByName("ESRI Shapefile")
@@ -185,6 +196,11 @@ def write_geometry(geom, fname, format="shapefile"):
 
     feature = ogr.Feature(dst_layer.GetLayerDefn())
     feature.SetField("DN", 1)
+
+    # modify the geometry such it has no segment longer then the given distance
+    if segment is not None:
+        geom.Segmentize(segment)
+
     feature.SetGeometry(geom)
     dst_layer.CreateFeature(feature)
 
@@ -192,7 +208,7 @@ def write_geometry(geom, fname, format="shapefile"):
     return
 
 
-def transform_geometry(geometry, osr_spref):
+def transform_geometry(geometry, osr_spref, segment=0.5):
     """
     return extent geometry
 
@@ -202,6 +218,9 @@ def transform_geometry(geometry, osr_spref):
         geometry object
     osr_spref : OGRSpatialReference
         spatial reference to what the geometry should be transformed to
+    segment : float
+        for precision: distance in units of input osr_spref of longest
+        segment of the geometry polygon
 
     Return
     ------
@@ -209,9 +228,18 @@ def transform_geometry(geometry, osr_spref):
         a geometry represented in the target spatial reference
 
     """
+    # to count the number of points of the polygon
+    # print(geometry_out.GetGeometryRef(0).GetGeometryRef(0).GetPointCount())
 
     geometry_out = geometry.Clone()
+
+    # modify the geometry such it has no segment longer then the given distance
+    if segment is not None:
+        geometry_out.Segmentize(segment)
+
+    # transform geometry to new spatial reference system.
     geometry_out.TransformTo(osr_spref)
+
     geometry = None
     return geometry_out
 
@@ -237,7 +265,7 @@ def get_geom_boundaries(geometry, rounding=1.0):
     return limits
 
 
-def extent2polygon(extent, osr_spref):
+def extent2polygon(extent, osr_spref, segment=None):
     """create a polygon geometry from extent.
 
     extent : list
@@ -248,6 +276,9 @@ def extent2polygon(extent, osr_spref):
                 [(x1, y1), (x2, y2), ...]
     osr_spref : OGRSpatialReference
         spatial reference of the coordinates in extent
+    segment : float
+        for precision: distance of longest segment of the geometry polygon
+        in units of input osr_spref
     """
 
     if isinstance(extent[0], tuple):
@@ -265,6 +296,11 @@ def extent2polygon(extent, osr_spref):
         edge = ogr.Geometry(ogr.wkbLinearRing)
         [edge.AddPoint(np.double(x), np.double(y)) for x, y in area]
         edge.CloseRings()
+
+        # modify the geometry such it has no segment longer then the given distance
+        if segment is not None:
+            edge.Segmentize(segment)
+
         geom_area = ogr.Geometry(ogr.wkbPolygon)
         geom_area.AddGeometry(edge)
 
@@ -290,3 +326,4 @@ def _points2geometry(coords, osr_spref):
             v.append(co[1])
 
     return create_multipoint_geom(u, v, osr_spref)
+
