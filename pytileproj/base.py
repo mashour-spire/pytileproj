@@ -233,6 +233,7 @@ class TiledProjectionSystem(object):
 
         covering_subgrid = list()
         for x in self.subgrids.keys():
+            geometry.intersect_geometry(geom, self.subgrids.get(x).polygon_geog)
             if geom.Intersects(self.subgrids.get(x).polygon_geog):
                 covering_subgrid.append(x)
 
@@ -412,7 +413,16 @@ class TiledProjectionSystem(object):
         if geom_sr is None:
             geom_area.AssignSpatialReference(geo_sr)
         elif not geom_sr.IsSame(geo_sr):
-            geom_area.TransformTo(geo_sr)
+            projected = geom_area.GetSpatialReference().IsProjected()
+            if projected == 0:
+                max_segment = 0.5
+            elif projected == 1:
+                max_segment = 50000
+            else:
+                raise Warning('Please check unit of geometry '
+                              'before reprojection!')
+            geom_area = geometry.transform_geometry(geom_area, geo_sr,
+                                                    segment=max_segment)
 
         # intersect the given grid ids and the overlapped ids
         overlapped_grids = self.locate_geometry_in_subgrids(geom_area)
@@ -463,9 +473,10 @@ class TiledProjection(object):
         """
 
         self.core = core
-        self.polygon_geog = polygon_geog
+        self.polygon_geog = geometry.segmentize_geometry(polygon_geog,
+                                                         segment=0.5)
         self.polygon_proj = geometry.transform_geometry(
-            polygon_geog, self.core.projection.osr_spref)
+            self.polygon_geog, self.core.projection.osr_spref)
         self.bbox_geog = geometry.get_geom_boundaries(
             self.polygon_geog, rounding=self.core.sampling / 1000000.0)
         self.bbox_proj = geometry.get_geom_boundaries(
@@ -572,8 +583,17 @@ class TiledProjection(object):
         grid_sr = self.projection.osr_spref
 
         # transform intersection geometry back to the spatial reference system
-        # of the subgrid
-        intersect.TransformTo(grid_sr)
+        # of the subgrid.
+        # segmentise for high precision during reprojection.
+        projected = intersect.GetSpatialReference().IsProjected()
+        if projected == 0:
+            max_segment = 0.5
+        elif projected == 1:
+            max_segment = 50000
+        else:
+            raise Warning('Please check unit of geometry before reprojection!')
+        intersect = geometry.transform_geometry(intersect, grid_sr,
+                                                segment=max_segment)
 
         # get envelope of the Geometry and cal the bounding tile of the
         envelope = intersect.GetEnvelope()
