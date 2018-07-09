@@ -143,7 +143,7 @@ def create_geometry_from_wkt(wkt_multipolygon, epsg=4326, segment=None):
 
     # modify the geometry such it has no segment longer then the given distance
     if segment is not None:
-        geom.Segmentize(segment)
+        geom = segmentize_geometry(geom, segment=segment)
 
     return geom
 
@@ -199,7 +199,7 @@ def write_geometry(geom, fname, format="shapefile", segment=None):
 
     # modify the geometry such it has no segment longer then the given distance
     if segment is not None:
-        geom.Segmentize(segment)
+        geom = segmentize_geometry(geom, segment=segment)
 
     feature.SetGeometry(geom)
     dst_layer.CreateFeature(feature)
@@ -208,7 +208,7 @@ def write_geometry(geom, fname, format="shapefile", segment=None):
     return
 
 
-def transform_geometry(geometry, osr_spref, segment=0.5):
+def transform_geometry(geometry, osr_spref, segment=None):
     """
     return extent geometry
 
@@ -235,13 +235,35 @@ def transform_geometry(geometry, osr_spref, segment=0.5):
 
     # modify the geometry such it has no segment longer then the given distance
     if segment is not None:
-        geometry_out.Segmentize(segment)
+        geometry_out = segmentize_geometry(geometry_out, segment=segment)
 
     # transform geometry to new spatial reference system.
     geometry_out.TransformTo(osr_spref)
 
     geometry = None
     return geometry_out
+
+
+def segmentize_geometry(geometry, segment=0.5):
+
+    geometry_out = geometry.Clone()
+
+    geometry_out.Segmentize(segment)
+
+    geometry = None
+    return geometry_out
+
+
+def intersect_geometry(geometry1, geometry2):
+
+    geometry1c=geometry1.Clone()
+    geometry2c=geometry2.Clone()
+    geometry1 = None
+    geometry2 = None
+
+    intersection = geometry1c.Intersection(geometry2c)
+
+    return intersection
 
 
 def get_geom_boundaries(geometry, rounding=1.0):
@@ -256,7 +278,7 @@ def get_geom_boundaries(geometry, rounding=1.0):
         precision
     Returns
     -------
-    list of numbers
+    limits : list of numbers
         rounded coordinates of geometry-envelope
 
     """
@@ -299,7 +321,7 @@ def extent2polygon(extent, osr_spref, segment=None):
 
         # modify the geometry such it has no segment longer then the given distance
         if segment is not None:
-            edge.Segmentize(segment)
+            edge = segmentize_geometry(edge, segment=segment)
 
         geom_area = ogr.Geometry(ogr.wkbPolygon)
         geom_area.AddGeometry(edge)
@@ -326,4 +348,39 @@ def _points2geometry(coords, osr_spref):
             v.append(co[1])
 
     return create_multipoint_geom(u, v, osr_spref)
+
+
+def setup_test_geom_spitzbergen():
+    """
+    Routine providing a geometry for testing
+
+    Returns
+    -------
+    poly_spitzbergen : OGRGeometry
+        4-corner polygon over high latitudes (is much curved on the globe)
+    """
+
+    ring_global = ogr.Geometry(ogr.wkbLinearRing)
+    ring_global.AddPoint(8.391827331539572,77.35762113396143)
+    ring_global.AddPoint(16.87007957357446,81.59290885863483)
+    ring_global.AddPoint(40.5011949830408,79.73786853853339)
+    ring_global.AddPoint(25.43098663332705,75.61353436967198)
+    ring_global.AddPoint(8.391827331539572,77.35762113396143)
+
+    poly_spitzbergen = ogr.Geometry(ogr.wkbPolygon)
+    poly_spitzbergen.AddGeometry(ring_global)
+
+    geom_global_wkt = '''GEOGCS[\"WGS 84\",
+                           DATUM[\"WGS_1984\",
+                                 SPHEROID[\"WGS 84\", 6378137, 298.257223563,
+                                          AUTHORITY[\"EPSG\", \"7030\"]],
+                                 AUTHORITY[\"EPSG\", \"6326\"]],
+                           PRIMEM[\"Greenwich\", 0],
+                           UNIT[\"degree\", 0.0174532925199433],
+                           AUTHORITY[\"EPSG\", \"4326\"]]'''
+    geom_global_sr = osr.SpatialReference()
+    geom_global_sr.ImportFromWkt(geom_global_wkt)
+    poly_spitzbergen.AssignSpatialReference(geom_global_sr)
+
+    return poly_spitzbergen
 
