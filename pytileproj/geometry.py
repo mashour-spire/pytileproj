@@ -37,6 +37,7 @@ import numpy as np
 from osgeo import ogr
 from osgeo import osr
 
+
 def uv2xy(u, v, src_ref, dst_ref):
     """
     wrapper; reprojects a pair of point coordinates
@@ -104,8 +105,8 @@ def create_point_geom(u, v, osr_spref):
     osr_spref : OGRSpatialReference
         spatial reference of given coordinates
 
-    Return
-    ------
+    Returns
+    -------
     OGRGeometry
         a geometry holding point defined by (u, v)
 
@@ -116,13 +117,14 @@ def create_point_geom(u, v, osr_spref):
 
     return point_geom
 
+
 def create_geometry_from_wkt(wkt_multipolygon, epsg=4326, segment=None):
     """
     return extent geometry from multipolygon defined by wkt string
 
     Parameters
     ----------
-    wkt_multipolygon : string
+    wkt_multipolygon : str
         WKT text containing points of geometry (e.g. polygon)
     epsg : int
         EPSG code of spatial reference of the points.
@@ -130,8 +132,8 @@ def create_geometry_from_wkt(wkt_multipolygon, epsg=4326, segment=None):
         for precision: distance of longest segment of the geometry polygon
         in units of input osr_spref (defined by epsg)
 
-    Return
-    ------
+    Returns
+    -------
     OGRGeometry
         a geometry holding the multipolygon and spatial reference
 
@@ -148,20 +150,32 @@ def create_geometry_from_wkt(wkt_multipolygon, epsg=4326, segment=None):
     return geom
 
 
-def open_geometry(fname, format="shapefile"):
+def open_geometry(fname, feature=0, format='shapefile'):
     '''
     opens a geometry from a vector file.
 
-    fname : string
+    fname : str
         full path of the output file name
-    format : string
-        format name. currently only shape file is supported
+    feature : int
+        optional; order number of feature that should be returned;
+        default is 0 for the first feature/object/geometry.
+    format : str
+        optional; format name. currently only shapefile is supported
     def __getitem__(key):
         return geoms[key]
+
+    Returns
+    -------
+    OGRGeomtery
+        a geometry from the input file as indexed by the feature number
     '''
-    driver = ogr.GetDriverByName("ESRI Shapefile")
+
+    if format == 'shapefile':
+        drivername = "ESRI Shapefile"
+
+    driver = ogr.GetDriverByName(drivername)
     ds = driver.Open(fname, 0)
-    feature = ds.GetLayer(0).GetFeature(0)
+    feature = ds.GetLayer(0).GetFeature(feature)
     geom = feature.GetGeometryRef()
 
     out = geom.Clone()
@@ -177,14 +191,17 @@ def write_geometry(geom, fname, format="shapefile", segment=None):
     ----------
     geom : Geometry
         geometry object
-    fname : string
+    fname : str
         full path of the output file name
-    format : string
-        format name. currently only shape file is supported
+    format : str
+        optional; format name. currently only shapefile is supported
     segment : float
         for precision: distance of longest segment of the geometry polygon
         in units of input osr_spref
     """
+
+    if format == 'shapefile':
+        drivername = "ESRI Shapefile"
 
     drv = ogr.GetDriverByName("ESRI Shapefile")
     dst_ds = drv.CreateDataSource(fname)
@@ -222,8 +239,8 @@ def transform_geometry(geometry, osr_spref, segment=None):
         for precision: distance in units of input osr_spref of longest
         segment of the geometry polygon
 
-    Return
-    ------
+    Returns
+    -------
     OGRGeomtery
         a geometry represented in the target spatial reference
 
@@ -245,6 +262,22 @@ def transform_geometry(geometry, osr_spref, segment=None):
 
 
 def segmentize_geometry(geometry, segment=0.5):
+    """
+    segmentizes the lines of a geometry
+
+    Parameters
+    ----------
+    geometry : OGRGeomtery
+        geometry object
+    segment : float
+        for precision: distance in units of input osr_spref of longest
+        segment of the geometry polygon
+
+    Returns
+    -------
+    OGRGeomtery
+        a congruent geometry realised by more vertices along its shape
+    """
 
     geometry_out = geometry.Clone()
 
@@ -255,6 +288,19 @@ def segmentize_geometry(geometry, segment=0.5):
 
 
 def intersect_geometry(geometry1, geometry2):
+    """
+    returns the intersection of two geometries
+
+    Parameters
+    ----------
+    geometry1, geometry2 : OGRGeomtery
+        geometry objects
+
+    Returns
+    -------
+    intersection : OGRGeomtery
+        a geometry representing the intersection area
+    """
 
     geometry1c=geometry1.Clone()
     geometry2c=geometry2.Clone()
@@ -301,6 +347,13 @@ def extent2polygon(extent, osr_spref, segment=None):
     segment : float
         for precision: distance of longest segment of the geometry polygon
         in units of input osr_spref
+
+    Returns
+    -------
+    geom_area : OGRGeomtery
+        a geometry representing the input extent as
+        a) polygon-geometry when defined by a rectangle extent
+        b) point-geometry when defined by extent through tuples of coordinates
     """
 
     if isinstance(extent[0], tuple):
@@ -339,7 +392,12 @@ def _points2geometry(coords, osr_spref):
     osr_spref : OGRSpatialReference
         spatial reference of the coordinates in extent
 
+    Returns
+    -------
+    geom_area : OGRGeomtery
+        a point-geometry representing the input tuples of coordinates
     """
+
     u = []
     v = []
     for co in coords:
