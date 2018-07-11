@@ -442,3 +442,37 @@ def setup_test_geom_spitzbergen():
 
     return poly_spitzbergen
 
+
+def setup_geom_kamchatka():
+    """
+    Routine providing a geometry for testing
+
+    Returns
+    -------
+    poly_kamchatka : OGRGeometry
+        4-corner polygon close to the dateline at Kamchatka peninsula.
+    """
+
+    ring_global = ogr.Geometry(ogr.wkbLinearRing)
+    ring_global.AddPoint(165.6045170932673, 59.05482187690058)
+    ring_global.AddPoint(167.0124744118732, 55.02758744559601)
+    ring_global.AddPoint(175.9512099050924, 54.36588084375806)
+    ring_global.AddPoint(179.4591330039386, 56.57634572271662)
+    ring_global.AddPoint(165.6045170932673, 59.05482187690058)
+
+    poly_kamchatka = ogr.Geometry(ogr.wkbPolygon)
+    poly_kamchatka.AddGeometry(ring_global)
+
+    geom_global_wkt = '''GEOGCS[\"WGS 84\",
+                           DATUM[\"WGS_1984\",
+                                 SPHEROID[\"WGS 84\", 6378137, 298.257223563,
+                                          AUTHORITY[\"EPSG\", \"7030\"]],
+                                 AUTHORITY[\"EPSG\", \"6326\"]],
+                           PRIMEM[\"Greenwich\", 0],
+                           UNIT[\"degree\", 0.0174532925199433],
+                           AUTHORITY[\"EPSG\", \"4326\"]]'''
+    geom_global_sr = osr.SpatialReference()
+    geom_global_sr.ImportFromWkt(geom_global_wkt)
+    poly_kamchatka.AssignSpatialReference(geom_global_sr)
+
+    return poly_kamchatka
