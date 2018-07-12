@@ -383,6 +383,41 @@ def extent2polygon(extent, osr_spref, segment=None):
 
     return geom_area
 
+def round_vertices_of_polygon(geometry, decimals=0):
+    """
+    'Cleans' the vertices of a polygon, so that it has rounded coordinates.
+
+    Parameters
+    ----------
+    geometry : OGRGeomtery
+        a polygon geometry
+    decimals : int
+        optional. rounding precision. default is 0.
+
+    Returns
+    -------
+    geometry_out : OGRGeomtery
+        a polygon geometry with rounded vertices
+    """
+
+    ring = geometry.GetGeometryRef(0)
+
+    rounded_ring = ogr.Geometry(ogr.wkbLinearRing)
+
+    n_points = ring.GetPointCount()
+
+    for p in range(n_points):
+        lon, lat, z = ring.GetPoint(p)
+        rlon, rlat, rz = [np.round(lon, decimals=decimals),
+                          np.round(lat, decimals=decimals),
+                          np.round(z, decimals=decimals)]
+        rounded_ring.AddPoint(rlon, rlat, rz)
+
+    geometry_out = ogr.Geometry(ogr.wkbPolygon)
+    geometry_out.AddGeometry(rounded_ring)
+
+    return geometry_out
+
 
 def _points2geometry(coords, osr_spref):
     """create a point geometry from a list of coordinate-tuples
