@@ -92,7 +92,7 @@ class TPSProjection():
 
         Parameters
         ----------
-        epsg : inte
+        epsg : int
             The EPSG-code of the spatial reference.
             As from http://www.epsg-registry.org
             Not all reference do have a EPSG code.
@@ -740,7 +740,7 @@ class TilingSystem(object):
     @abc.abstractmethod
     def point2tilename(self, x, y):
         """
-        Returns the name string of an Equi7Tile in which the point,
+        Returns the name string of an Tile() in which the point,
         defined by x and y coordinates (in metres), is located.
 
         Parameters

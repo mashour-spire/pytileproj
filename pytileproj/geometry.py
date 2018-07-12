@@ -189,7 +189,7 @@ def write_geometry(geom, fname, format="shapefile", segment=None):
 
     parameters
     ----------
-    geom : Geometry
+    geom : OGRGeometry
         geometry object
     fname : str
         full path of the output file name
