@@ -42,6 +42,7 @@ import os
 import pickle
 import copy
 import itertools
+import warnings
 
 import numpy as np
 
@@ -55,7 +56,7 @@ from pytileproj.geometry import create_geometry_from_wkt
 
 def _load_static_data(module_path):
     """
-    load the data, raise the error if failed to load equi7grid.dat
+    load the data, raise the error if failed to load utmgrid.dat
 
     Parameters
     ----------
@@ -64,19 +65,21 @@ def _load_static_data(module_path):
 
     Returns
     -------
-    equi7data : dict
+    utm_data : dict
         dictionary containing for each subgrid...
             a) the multipolygon 'zone_extent'
             b) the WKT-string 'projection'
-            c) the sets for T6/T3/T1-tiles covering land 'coverland'
-            d) the UTMGrid version 'version'
 
     """
-    equi7_data = None
-    fname = os.path.join(os.path.dirname(module_path), "data", "utmgrid.dat")
+    utm_data = None
+    fname = os.path.join(os.path.dirname(module_path), "data", "utm",
+                         "utmgrid.dat")
+    if not os.path.isfile(fname):
+        warnings.warn("utmgrid.dat is not available! UTMGrid won't work!")
+        return
     with open(fname, "rb") as f:
-        equi7_data = pickle.load(f)
-    return equi7_data
+        utm_data = pickle.load(f)
+    return utm_data
 
 
 def create_UTM_zone_names():
@@ -86,13 +89,13 @@ def create_UTM_zone_names():
     Returns
     -------
     subgrids : list of str
-        all acronyms for the 124 zones
+        all acronyms for the 124 zones, e.g. Z17S
 
     """
     helper = [str(x).zfill(2) for x in range(0,61)]
-    subgrids = [x + 'N' for x in helper[1:-1]] + \
-               [x + 'S' for x in helper[1:-1]] + \
-               ['00A', '00B', '00Y', '00Z']
+    subgrids = ['Z' + x + 'N' for x in helper[1:-1]] + \
+               ['Z' + x + 'S' for x in helper[1:-1]] + \
+               ['Z00A', 'Z00B', 'Z00Y', 'Z00Z']
     subgrids.sort()
 
     return subgrids
@@ -120,7 +123,7 @@ class UTMGrid(TiledProjectionSystem):
     _static_data = _load_static_data(__file__)
     # sub grid IDs
     _static_subgrid_ids = create_UTM_zone_names()
-    # supported tile widths (linked to the grid sampling)
+    # TODO: supported tile widths (linked to the grid sampling)
     _static_tilecodes = ["T6", "T3", "T1"]
     # supported grid spacing ( = the pixel sampling)
     _static_sampling = [1000, 800, 750, 600, 500, 400, 300, 250, 200,
@@ -137,7 +140,7 @@ class UTMGrid(TiledProjectionSystem):
             the grid sampling = size of pixels; in metres.
 
         """
-        # check if the equi7grid.data have been loaded successfully
+        # check if the utmgrid.data have been loaded successfully
         if UTMGrid._static_data is None:
             raise ValueError("cannot load UTMGrid ancillary data!")
         # check if sampling is allowed
@@ -145,8 +148,9 @@ class UTMGrid(TiledProjectionSystem):
             raise ValueError("Sampling {}m is not supported!".format(sampling))
 
         # initializing
-        super(UTMGrid, self).__init__(sampling, tag='Equi7')
+        super(UTMGrid, self).__init__(sampling, tag='UTM')
         self.core.projection = 'multiple'
+
 
     @staticmethod
     def encode_sampling(sampling):
@@ -170,6 +174,7 @@ class UTMGrid(TiledProjectionSystem):
             sampling_str = "".join(
                 (str(sampling / 1000.0)[0], 'K', str(sampling / 1000.0)[2]))
         return sampling_str
+
 
     @staticmethod
     def decode_sampling(sampling_str):
@@ -196,6 +201,7 @@ class UTMGrid(TiledProjectionSystem):
             sampling = int(sampling_str)
         return sampling
 
+
     def define_subgrids(self):
         """
         Builds the grid's subgrids from a static file.
@@ -209,6 +215,7 @@ class UTMGrid(TiledProjectionSystem):
         for sg in self._static_subgrid_ids:
             subgrids[sg] = UTMSubgrid(self.core, sg)
         return subgrids
+
 
     def get_tiletype(self, sampling):
         """
@@ -245,6 +252,7 @@ class UTMGrid(TiledProjectionSystem):
 
         return tilecode
 
+
     def get_tilesize(self, sampling):
         """
         Return the tile size in metres defined for the grid's sampling
@@ -266,14 +274,15 @@ class UTMGrid(TiledProjectionSystem):
             self.get_tiletype(sampling)]
         return xsize, ysize
 
+
     def create_tile(self, name):
         """
-        shortcut to create_tile, returning a Equi7Tile object
+        shortcut to create_tile, returning a UTMTile object
 
         Parameters
         ----------
         name : str
-            name of the tile; e.g EU500M_E012N018T6
+            name of the tile; e.g Z17S500M_E012N018T6
 
         Returns
         -------
@@ -299,7 +308,7 @@ class UTMSubgrid(TiledProjection):
         core : TPSCoreProperty
             defines core parameters of the (sub-) grid
         continent : str
-            acronym of the continent, e.g. 'EU' or 'SA'.
+            acronym of the continent, e.g. '01N' or '17S'.
         """
 
         # load WKT string and extent shape
@@ -314,7 +323,7 @@ class UTMSubgrid(TiledProjection):
 
         # holds name of the subgrid
         self.name = ''.join(
-            ('EQUI7_', continent, UTMGrid.encode_sampling(core.sampling),
+            ('UTMG_', continent, UTMGrid.encode_sampling(core.sampling),
              'M'))
 
         # holds the extent of the subgrid in the latlon-space
@@ -356,14 +365,15 @@ class UTMTilingSystem(TilingSystem):
             self.core.tile_ysize_m / 100000)
         self.msg3 = 'Tilecode must be one of T6, T3, T1!'
 
+
     def create_tile(self, name=None, x=None, y=None):
         """
-        Returns a Equi7Tile object
+        Returns a UTMTile object
 
         Parameters
         ----------
         name : str
-            name of the tile; e.g EU500M_E012N018T6 or E012N018T6
+            name of the tile; e.g Z17S500M_E012N018T6 or E012N018T6
         x : int
             x (right) coordinate of a pixel located in the desired tile
             must to given together with y
@@ -398,6 +408,7 @@ class UTMTilingSystem(TilingSystem):
 
         return UTMTile(self.core, name, llx, lly, covers_land=covers_land)
 
+
     def point2tilename(self, x, y, shortform=False):
         """
         Returns the name string of an UTMTile in which the point,
@@ -413,17 +424,18 @@ class UTMTilingSystem(TilingSystem):
             must to given together with x
         shortform : Boolean
             option for giving back the shortform of the tile name
-            e.g. 'E012N018T6'.
+            e.g. 'E000N018T6'.
 
         Returns
         -------
         str
-            the tilename in longform e.g. 'EU500M_E012N018T6'
-            or in shortform e.g. 'E012N018T6'.
+            the tilename in longform e.g. 'Z17S500M_E000N018T6'
+            or in shortform e.g. 'E000N018T6'.
 
         """
         llx, lly = self.round_xy2lowerleft(x, y)
         return self._encode_tilename(llx, lly, shortform=shortform)
+
 
     def encode_tilename(self, llx, lly, sampling, tilecode, shortform=False):
         """
@@ -445,11 +457,11 @@ class UTMTilingSystem(TilingSystem):
         Returns
         -------
         str
-            the tilename in longform e.g. 'EU500M_E012N018T6'
-            or in shortform e.g. 'E012N018T6'.
+            the tilename in longform e.g. 'Z17S500M_E000N018T6'
+            or in shortform e.g. 'E000N018T6'.
         """
 
-        # gives long-form of tilename (e.g. "EU500M_E012N018T6")
+        # gives long-form of tilename (e.g. "Z17S500M_E012N018T6")
         tilename = "{}{}M_E{:03d}N{:03d}{}".format(
             self.core.tag, UTMGrid.encode_sampling(sampling),
             np.int(llx) // 100000, np.int(lly) // 100000, tilecode)
@@ -458,6 +470,7 @@ class UTMTilingSystem(TilingSystem):
             tilename = self.tilename2short(tilename)
 
         return tilename
+
 
     def _encode_tilename(self, llx, lly, shortform=False):
         """
@@ -476,17 +489,18 @@ class UTMTilingSystem(TilingSystem):
         Returns
         -------
         str
-            the tilename in longform e.g. 'EU500M_E012N018T6'
-            or in shortform e.g. 'E012N018T6'.
+            the tilename in longform e.g. 'Z17S500M_E000N018T6'
+            or in shortform e.g. 'E000N018T6'.
 
         """
         return self.encode_tilename(llx, lly, self.core.sampling,
                                     self.core.tiletype, shortform=shortform)
 
+
     def tilename2short(self, longform):
         """
         Converts a tilename in longform to shortform
-        e.g. 'EU500M_E012N018T6' --> 'E012N018T6'
+        e.g. 'Z17S500M_E000N018T6' --> 'E000N018T6'
 
         Parameters
         ----------
@@ -500,9 +514,10 @@ class UTMTilingSystem(TilingSystem):
 
         """
         self.check_tilename(longform)
-        if len(longform) == 17:
-            shortform = longform[7:]
+        if len(longform) == 19:
+            shortform = longform[9:]
         return shortform
+
 
     def tilename2lowerleft(self, tilename):
         """
@@ -511,8 +526,8 @@ class UTMTilingSystem(TilingSystem):
         Parameters
         ----------
         tilename : str
-            the tilename in longform e.g. 'EU500M_E012N018T6'
-            or in shortform e.g. 'E012N018T6'.
+            the tilename in longform e.g. 'Z17S500M_E000N018T6'
+            or in shortform e.g. 'E000N018T6'.
 
         Returns
         -------
@@ -522,6 +537,7 @@ class UTMTilingSystem(TilingSystem):
         _, _, _, llx, lly, _ = self.decode_tilename(tilename)
         return llx, lly
 
+
     def check_tilename(self, tilename):
         """
         checks if the given tilename is valid
@@ -529,8 +545,8 @@ class UTMTilingSystem(TilingSystem):
         Parameters
         ----------
         tilename : str
-            the tilename in longform e.g. 'EU500M_E012N018T6'
-            or in shortform e.g. 'E012N018T6'.
+            the tilename in longform e.g. 'Z17S500M_E000N018T6'
+            or in shortform e.g. 'E000N018T6'.
 
         Returns
         -------
@@ -543,6 +559,7 @@ class UTMTilingSystem(TilingSystem):
         check = True
         return check
 
+
     def decode_tilename(self, tilename):
         """
         Returns the information assigned to the tilename
@@ -550,13 +567,13 @@ class UTMTilingSystem(TilingSystem):
         Parameters
         ----------
         tilename : str
-            the tilename in longform e.g. 'EU500M_E012N018T6'
-            or in shortform e.g. 'E012N018T6'.
+            the tilename in longform e.g. 'Z17S500M_E000N018T6'
+            or in shortform e.g. 'E000N018T6'.
 
         Returns
         -------
         subgrid_id : str
-            ID acronym of the subgrid, e.g. 'EU'
+            ID acronym of the subgrid, e.g. 'Z17S'
         sampling : int
             the grid sampling = size of pixels; in metres.
         tile_size_m : int
@@ -587,21 +604,21 @@ class UTMTilingSystem(TilingSystem):
             subgrid_id = self.core.tag
             sampling = self.core.sampling
 
-        # allow long-form of tilename (e.g. "EU500M_E012N018T6")
-        elif len(tilename) == 17:
-            subgrid_id = tilename[0:2]
+        # allow long-form of tilename (e.g. "Z17S500M_E012N018T6")
+        elif len(tilename) == 19:
+            subgrid_id = tilename[0:4]
             if subgrid_id != self.core.tag:
                 raise ValueError(self.msg1)
-            sampling = UTMGrid.decode_sampling(tilename[2:5])
+            sampling = UTMGrid.decode_sampling(tilename[4:7])
             if sampling != self.core.sampling:
                 raise ValueError(self.msg1)
             tile_size_m = int(tilename[-1]) * 100000
             if tile_size_m != self.core.tile_xsize_m:
                 raise ValueError(self.msg1)
-            llx = int(tilename[8:11])
+            llx = int(tilename[10:13])
             if llx % tf:
                 raise ValueError(self.msg2)
-            lly = int(tilename[12:15])
+            lly = int(tilename[14:17])
             if lly % tf:
                 raise ValueError(self.msg2)
             tilecode = tilename[-2:]
@@ -614,6 +631,7 @@ class UTMTilingSystem(TilingSystem):
 
         return subgrid_id, sampling, tile_size_m, llx * 100000, lly * 100000, tilecode
 
+
     def find_overlapping_tilenames(self, tilename,
                                    target_sampling=None,
                                    target_tiletype=None):
@@ -624,8 +642,8 @@ class UTMTilingSystem(TilingSystem):
         Parameters
         ----------
         tilename : str
-            the tilename in longform e.g. 'EU500M_E012N018T6'
-            or in shortform e.g. 'E012N018T6'.
+            the tilename in longform e.g. 'Z17S500M_E000N018T6'
+            or in shortform e.g. 'E000N018T6'.
         target_sampling : int
             the sampling of the target grid system
         target_tiletype : string
@@ -703,6 +721,7 @@ class UTMTilingSystem(TilingSystem):
 
         return family_tiles
 
+
     def check_tile_covers_land(self, tilename=None):
         """
         checks if a tile covers land
@@ -710,16 +729,22 @@ class UTMTilingSystem(TilingSystem):
         Parameters
         ----------
         tilename : str
-            the tilename in longform e.g. 'EU500M_E012N018T6'
+            the tilename in longform e.g. 'Z17S500M_E000N018T6'
 
         Returns
         -------
         Boolean
         """
+
+        """
         land_tiles = self.list_tiles_covering_land()
         if self.check_tilename(tilename):
             tilename = self.tilename2short(tilename)
             return tilename in land_tiles
+        """
+        # TODO check_tile_covers_land() not implemented!"
+        return True
+
 
     def list_tiles_covering_land(self):
         """
@@ -731,9 +756,13 @@ class UTMTilingSystem(TilingSystem):
             list containing land tiles
         """
 
+        """
         land_tiles = UTMGrid._static_data[
             self.core.tag]["coverland"][self.core.tiletype]
         return list(land_tiles)
+        """
+        # TODO list_tiles_covering_land() not implemented!"
+        return True
 
 
 class UTMTile(Tile):

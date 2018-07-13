@@ -324,6 +324,13 @@ class TiledProjectionSystem(object):
             TPS grid coordinates
         """
 
+        #check for correct subgrid for the given lonlat coords
+        bb = self.subgrids[subgrid].polygon_geog.GetEnvelope()
+        if (lon <= bb[0]).any() or (lon >= bb[1]).any() or \
+                (lat <= bb[2]).any() or (lat >= bb[3]).any():
+            raise ValueError("Check: lon or lat or "
+                             "outside of the given subgrid!")
+
         # set up spatial references
         p_grid = pyproj.Proj(self.subgrids[subgrid].core.projection.proj4)
         p_geo = pyproj.Proj(init="EPSG:4326")
@@ -388,7 +395,6 @@ class TiledProjectionSystem(object):
             subgrid_ids = self.subgrids.keys()
         if isinstance(subgrid_ids, str):
             subgrid_ids = [subgrid_ids]
-        subgrid_ids = [x.upper() for x in subgrid_ids]
         if set(subgrid_ids).issubset(set(self.subgrids.keys())):
             subgrid_ids = list(subgrid_ids)
         else:
