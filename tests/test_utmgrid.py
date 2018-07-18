@@ -58,6 +58,25 @@ def test_lonlat2xy_numpy_array():
     nptest.assert_allclose(y_should, y)
 
 
+def test_lonlat2xy_MGRS_numpy_array():
+    """
+    Tests lonlat to xy projection using numpy arrays.
+    """
+    utm = UTMGrid(500)
+    x_should = np.array([507840.292027,
+                         210029.47,
+                         2394255.583836])
+    y_should = np.array([4983717.660043,
+                         6820022.61,
+                         2000000.0])
+    lon = np.array([15.1, 3.564943, 90.0])
+    lat = np.array([-45.3, 61.405307, -86.45])
+    sgrid_id, x, y = utm.lonlat2xy_MGRS(lon, lat)
+    nptest.assert_array_equal(sgrid_id, np.array(['Z33G', 'Z32V', 'Z00B']))
+    nptest.assert_allclose(x_should, x)
+    nptest.assert_allclose(y_should, y)
+
+
 def test_lonlat2xy_numpy_array_subgrid():
     """
     Tests lonlat to xy projection using numpy arrays.
@@ -214,7 +233,7 @@ def test_search_tiles_lon_lat_extent():
 
     tiles_all = utm.search_tiles_in_roi(extent=[-179.9, -89.9, 179.9, 89.9],
                                        coverland=True)
-    assert len(tiles_all) == 3578
+    assert len(tiles_all) == 3638
 
 
 
@@ -282,7 +301,8 @@ def test_search_tiles_kamchatka():
     kamchatka_geom = setup_geom_kamchatka()
     kamchatka_geom_tiles = sorted(
         ['Z58N500M_E000N060T6', 'Z58N500M_E006N060T6',
-         'Z59N500M_E000N060T6', 'Z59N500M_E006N060T6'])
+         'Z59N500M_E000N060T6', 'Z59N500M_E006N060T6',
+         'Z60N500M_E000N060T6', 'Z60N500M_E006N060T6'])
     tiles = sorted(
         grid.search_tiles_in_roi(kamchatka_geom, coverland=False))
 

@@ -18,7 +18,7 @@ It's a python package that handles the geometric and geographic operations of a 
 It was designed for data cubes ingesting satellite imagery and builds the basis for the Equi7Grid (see https://github
 .com/TUW-GEO/Equi7Grid).
 
-It also includes a realisation for the UTM/UPS grid system, using the TiledProjectionSystems (TPS) approach.
+It also includes a nice and handy realisation of the UTM/UPS grid system, using the TiledProjectionSystems (TPS) approach.
 
 
 Note

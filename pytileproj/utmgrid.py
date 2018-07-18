@@ -93,8 +93,8 @@ def create_UTM_zone_names():
 
     """
     helper = [str(x).zfill(2) for x in range(0,61)]
-    subgrids = ['Z' + x + 'N' for x in helper[1:-1]] + \
-               ['Z' + x + 'S' for x in helper[1:-1]] + \
+    subgrids = ['Z' + x + 'N' for x in helper[1:]] + \
+               ['Z' + x + 'S' for x in helper[1:]] + \
                ['Z00A', 'Z00B', 'Z00Y', 'Z00Z']
     subgrids.sort()
 
@@ -291,6 +291,75 @@ class UTMGrid(TiledProjectionSystem):
 
         """
         return self.subgrids[name[0:2]].tilesys.create_tile(name)
+
+
+    def lonlat2xy_MGRS(self, lon, lat, subgrid=None):
+        """
+        converts latitude and longitude coordinates to MGRS grid coordinates
+
+        Parameters
+        ----------
+        lon : list of numbers
+            longitude coordinates
+        lat : list of numbers
+            latitude coordinates
+        subgrid : str
+            optional: acronym / subgrid ID to search within (speeding up)
+        return_lat_band : bool
+            optional: if set to True, the zone code with the latitude letter
+            is returned (used e.g. for the MGRS coordinates)
+
+        Returns
+        -------
+        zone : str
+            subgrid ID; the zone code with the latitude band letter
+        x, y : list of float
+            TPS grid coordinates
+        """
+
+        zone, x, y = super(UTMGrid, self).lonlat2xy(lon, lat, subgrid=subgrid)
+
+        vfunc = np.vectorize(self._return_latitude_band)
+        zone = vfunc(zone, lon, lat)
+
+        return zone, x, y
+
+
+    def _return_latitude_band(self, subgrid, lon, lat):
+        """
+        Returns the UTM zone code with the latitude letter
+        used e.g. for the MGRS coordinates
+        [33T lon lat] instead of [33N lon lat]
+
+        Parameters
+        ----------
+        subgrid : str
+            acronym / subgrid ID to be translated
+        lon : number
+            longitude coordinate
+        lat : number
+            latitude coordinate
+
+        Returns
+        -------
+        zone : str
+            zone identifier with latitudinal band letter
+        """
+
+        if lat < -80:
+            letter = 'A' if lon < 0 else 'B'
+        if lat < 0.0 and lat >= -80.0:
+            letter = ['C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M'][
+                int(np.floor((lat + 80) / 8))]
+        if lat >= 0.0 and lat <= 84.0:
+            letter = ['N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'X'][
+                int(np.floor((lat) / 8))]
+        if lat > 84.0:
+            letter = 'X' if lon < 0 else 'Z'
+
+        zone_code = subgrid[0:3] + letter
+
+        return zone_code
 
 
 class UTMSubgrid(TiledProjection):
