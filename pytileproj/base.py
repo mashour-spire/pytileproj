@@ -345,6 +345,10 @@ class TiledProjectionSystem(object):
         pass
 
 
+    def get_tile_limits_m(self, tilename):
+        return self.create_tile(tilename).limits_m()
+
+
     @abc.abstractmethod
     def get_tiletype(self, sampling):
         pass
