@@ -17,8 +17,7 @@ pytileproj
 A python class for working with TiledProjectionSystems (TPS).
 
 It's a python package that handles the geometric and geographic operations of a gridded and tiled projection system.
-It was designed for data cubes ingesting satellite imagery and builds the basis for the Equi7Grid (see https://github
-.com/TUW-GEO/Equi7Grid).
+It was designed for data cubes ingesting satellite imagery and builds the basis for the Equi7Grid (see https://github.com/TUW-GEO/Equi7Grid).
 
 It also includes a nice and handy realisation of the UTM/UPS grid system, using the TiledProjectionSystems (TPS) approach.
 
@@ -45,6 +44,8 @@ This package should be installable through pip:
 .. code::
 
     pip install pytileproj
+
+Installs for numba, scripy and gdal are required from conda or conda-forge.
 
 Contribute
 ==========
@@ -103,6 +104,5 @@ If you want to contribute please follow these steps:
 Note
 ====
 
-The project is work-in-progress. Handle with care! ;-)
-
-Installs for numba, scripy and gdal are required from conda or conda-forge.
+This project has been set up using PyScaffold 2.5.11. For details and usage
+information on PyScaffold see http://pyscaffold.readthedocs.org/.
