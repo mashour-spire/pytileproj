@@ -884,18 +884,18 @@ class TilingSystem(object):
 
             # left_edge
             if extent[0] <= bbox[0]:
-                le = (bbox[0] - extent[0]) / tile.core.sampling
+                le = (bbox[0] - extent[0]) // tile.core.sampling
             # top_edge
             if extent[1] <= bbox[1]:
-                te = (bbox[1] - extent[1]) / tile.core.sampling
+                te = (bbox[1] - extent[1]) // tile.core.sampling
             # right_edge
             if extent[2] > bbox[2]:
                 re = (
-                    bbox[2] - extent[2] + self.core.tile_xsize_m) / tile.core.sampling
+                    bbox[2] - extent[2] + self.core.tile_xsize_m) // tile.core.sampling
             # bottom_edge
             if extent[3] > bbox[3]:
                 be = (
-                    bbox[3] - extent[3] + self.core.tile_ysize_m) / tile.core.sampling
+                    bbox[3] - extent[3] + self.core.tile_ysize_m) // tile.core.sampling
 
             # subset holding indices of the tile that cover the bounding box.
             tile.active_subset_px = le, te, re, be
@@ -933,8 +933,8 @@ class Tile(object):
         self.typename = core.tiletype
         self.llx = xll
         self.lly = yll
-        self.x_size_px = self.core.tile_xsize_m / self.core.sampling
-        self.y_size_px = self.core.tile_ysize_m / self.core.sampling
+        self.x_size_px = self.core.tile_xsize_m // self.core.sampling
+        self.y_size_px = self.core.tile_ysize_m // self.core.sampling
         self._subset_px = (0, 0, self.x_size_px, self.y_size_px)
 
     def __getattr__(self, item):
@@ -1152,6 +1152,6 @@ class GlobalTile(Tile):
                                   self.core.sampling) * self.core.sampling) - \
                                  (np.ceil(bbox_polygon_proj[2] /
                                   self.core.sampling) * self.core.sampling))
-        self.x_size_px = self.core.tile_xsize_m / self.core.sampling
-        self.y_size_px = self.core.tile_ysize_m / self.core.sampling
+        self.x_size_px = self.core.tile_xsize_m // self.core.sampling
+        self.y_size_px = self.core.tile_ysize_m // self.core.sampling
         self._subset_px = (0, 0, self.x_size_px, self.y_size_px)
