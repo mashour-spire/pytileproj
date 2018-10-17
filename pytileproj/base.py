@@ -350,8 +350,21 @@ class TiledProjectionSystem(object):
 
 
     @abc.abstractmethod
-    def get_tiletype(self, sampling):
+    def get_tiletype(self, sampling=None):
         pass
+
+
+    def _get_tiletype(self):
+        """
+        Internal function to get the tile code of the grid instance.
+
+        Returns
+        -------
+        tilecode : str
+            tilecode (related the tile size of the grid.
+
+        """
+        return self.get_tiletype(self.core.sampling)
 
 
     @abc.abstractmethod
@@ -884,18 +897,16 @@ class TilingSystem(object):
 
             # left_edge
             if extent[0] <= bbox[0]:
-                le = (bbox[0] - extent[0]) / tile.core.sampling
+                le = int((bbox[0] - extent[0]) // tile.core.sampling)
             # top_edge
             if extent[1] <= bbox[1]:
-                te = (bbox[1] - extent[1]) / tile.core.sampling
+                te = int((bbox[1] - extent[1]) // tile.core.sampling)
             # right_edge
             if extent[2] > bbox[2]:
-                re = (
-                    bbox[2] - extent[2] + self.core.tile_xsize_m) / tile.core.sampling
+                re = int((bbox[2] - extent[2] + self.core.tile_xsize_m) // tile.core.sampling)
             # bottom_edge
             if extent[3] > bbox[3]:
-                be = (
-                    bbox[3] - extent[3] + self.core.tile_ysize_m) / tile.core.sampling
+                be = int((bbox[3] - extent[3] + self.core.tile_ysize_m) // tile.core.sampling)
 
             # subset holding indices of the tile that cover the bounding box.
             tile.active_subset_px = le, te, re, be
@@ -903,6 +914,72 @@ class TilingSystem(object):
             tiles.append(tile)
 
         return tiles
+
+    @abc.abstractmethod
+    def find_overlapping_tilenames(self, tilename,
+                                   target_sampling=None,
+                                   target_tiletype=None):
+        """
+        finds the "family tiles", which share a congruent or partial overlap,
+        but with different resolution and tilecode
+
+        Parameters
+        ----------
+        tilename : str
+            the tilename in longform e.g. 'Z17S500M_E000N018T6'
+            or in shortform e.g. 'E000N018T6'.
+        target_sampling : int
+            the sampling of the target grid system
+        target_tiletype : string
+            tilecode string
+
+        Returns
+        -------
+        list
+            list of found tiles
+            for smaller tiles: tiles contained in tile with 'tilename'
+            for larger tiles: the tile overlap the with 'tilename'
+
+        Notes
+        -----
+        Either the sampling or tilecode should be given.
+        But if both are given, the sampling will be used.
+        """
+
+        return []
+
+
+    def get_covering_tiles(self, tiles,
+                           target_sampling=None,
+                           target_tiletype=None):
+        """
+        Collects all tiles of other_tile_type covering the list of given tiles.
+
+        Parameters
+        ----------
+        tiles : list of str
+            list of tilenames
+        target_sampling : int
+            sampling related to target tile type
+        target_tiletype : str
+            string defining target tile type
+
+        Returns
+        -------
+        list of str
+            list of co-locating tiles of other_tile_type
+            e.g. ['E000N054T6', 'E000N060T6']
+        """
+
+
+
+        cover_tiles = []
+        for t in tiles:
+            cover_tiles += self.find_overlapping_tilenames(t,
+                                         target_sampling=target_sampling,
+                                         target_tiletype=target_tiletype)
+
+        return list(set(cover_tiles))
 
 
 class Tile(object):
@@ -933,8 +1010,8 @@ class Tile(object):
         self.typename = core.tiletype
         self.llx = xll
         self.lly = yll
-        self.x_size_px = self.core.tile_xsize_m / self.core.sampling
-        self.y_size_px = self.core.tile_ysize_m / self.core.sampling
+        self.x_size_px = int(self.core.tile_xsize_m / self.core.sampling)
+        self.y_size_px = int(self.core.tile_ysize_m / self.core.sampling)
         self._subset_px = (0, 0, self.x_size_px, self.y_size_px)
 
     def __getattr__(self, item):
@@ -1152,6 +1229,6 @@ class GlobalTile(Tile):
                                   self.core.sampling) * self.core.sampling) - \
                                  (np.ceil(bbox_polygon_proj[2] /
                                   self.core.sampling) * self.core.sampling))
-        self.x_size_px = self.core.tile_xsize_m / self.core.sampling
-        self.y_size_px = self.core.tile_ysize_m / self.core.sampling
+        self.x_size_px = int(self.core.tile_xsize_m / self.core.sampling)
+        self.y_size_px = int(self.core.tile_ysize_m / self.core.sampling)
         self._subset_px = (0, 0, self.x_size_px, self.y_size_px)

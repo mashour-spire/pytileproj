@@ -331,3 +331,29 @@ def test_identify_tiles_overlapping_xybbox():
 
     assert sorted(tiles1) == sorted(tiles1_should)
     assert sorted(tiles2) == sorted(tiles2_should)
+
+
+def test_get_covering_tiles():
+    """
+    Tests the search for co-locating tiles of other type.
+    """
+
+    utm_500 = UTMGrid(500)
+    utm_10 = UTMGrid(10)
+
+    fine_tiles = ['Z33N010M_E005N058T1', 'Z33N010M_E005N059T1',
+                  'Z33N010M_E005N060T1', 'Z33N010M_E005N061T1']
+
+    target_tiletype = utm_500.get_tiletype()
+    target_sampling = utm_500.core.sampling
+
+    # invoke the results as tile name in short form
+    coarse_tiles_shortform = utm_10.Z33N.tilesys.get_covering_tiles(fine_tiles,
+                                             target_tiletype=target_tiletype)
+
+    # invoke the results as tile name in long form
+    coarse_tiles_longform = utm_10.Z33N.tilesys.get_covering_tiles(fine_tiles,
+                                           target_sampling=target_sampling)
+
+    assert sorted(coarse_tiles_shortform) == ['E000N054T6', 'E000N060T6']
+    assert sorted(coarse_tiles_longform) == ['Z33N500M_E000N054T6', 'Z33N500M_E000N060T6']

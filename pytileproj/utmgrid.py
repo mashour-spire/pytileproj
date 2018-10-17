@@ -217,13 +217,13 @@ class UTMGrid(TiledProjectionSystem):
         return subgrids
 
 
-    def get_tiletype(self, sampling):
+    def get_tiletype(self, sampling=None):
         """
         Returns the tilecode defined for the grid's sampling
 
         Parameters
         ----------
-        sampling : int
+        sampling : int, optional
             the grid sampling = size of pixels; in metres.
 
         Returns
@@ -231,6 +231,10 @@ class UTMGrid(TiledProjectionSystem):
         tilecode : str
             tilecode (related the tile size of the grid)
         """
+
+        # get the tile code of the grid instance
+        if sampling is None:
+            return self._get_tiletype()
 
         sampling = int(sampling)
 
