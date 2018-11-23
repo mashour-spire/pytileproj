@@ -250,13 +250,15 @@ class TiledProjectionSystem(object):
             longitude coordinates
         lat : list of numbers
             latitude coordinates
-        subgrid : str
-            optional: acronym / subgrid ID to search within (speeding up)
+        subgrid : str, optional
+             acronym / subgrid ID to search within (speeding up)
+             forces to find coordinates in given subgrid
+             --> can return outlying or negative coordinates!
 
         Returns
         -------
         subgrid : str
-            subgrid ID
+            subgrid ID in which the returned x, y coordinates are defined
         x, y : list of float
             TPS grid coordinates
         """
@@ -270,8 +272,8 @@ class TiledProjectionSystem(object):
 
     def _lonlat2xy(self, lon, lat):
         """
-        finds overlapping subgrids of a given point in lon-lat-space
-        and computes the projected coordinates.
+        finds overlapping subgrid of a given point in lon-lat-space
+        and computes the projected coordinates referring to that subgrid.
 
         Parameters
         ----------
@@ -309,12 +311,14 @@ class TiledProjectionSystem(object):
 
         Parameters
         ----------
-        lon : number
-            longitude coordinate
-        lat : number
-            latitude coordinate
-        subgrid : str
-            acronym / subgrid ID to search within (speeding up)
+        lon : list of numbers
+            longitude coordinates
+        lat : list of numbers
+            latitude coordinates
+        subgrid : str, optional
+             acronym / subgrid ID to search within (speeding up)
+             forces to find coordinates in given subgrid
+             --> can return outlying or negative coordinates!
 
         Returns
         -------
@@ -323,13 +327,6 @@ class TiledProjectionSystem(object):
         x, y : int
             TPS grid coordinates
         """
-
-        #check for correct subgrid for the given lonlat coords
-        bb = self.subgrids[subgrid].polygon_geog.GetEnvelope()
-        if (lon <= bb[0]).any() or (lon >= bb[1]).any() or \
-                (lat <= bb[2]).any() or (lat >= bb[3]).any():
-            raise ValueError("Check: lon or lat or "
-                             "outside of the given subgrid!")
 
         # set up spatial references
         p_grid = pyproj.Proj(self.subgrids[subgrid].core.projection.proj4)
