@@ -34,6 +34,7 @@ Code for Tiled Projection Systems.
 
 import abc
 import itertools
+import math
 
 import numpy as np
 from osgeo import osr
@@ -732,6 +733,45 @@ class TilingSystem(object):
         return
 
 
+    def xy2ij_in_tile(self, x, y, lowerleft=False):
+        """
+        finds the tile and the pixel indices for a point given in projected coords.
+        pixel indices comprise the column and row number (i, j)
+
+        columns go from left to right (easting)
+        rows go either
+            top to bottom (lowerleft=False)
+            bottom to top (lowerleft=True)
+
+        Parameters
+        ----------
+        x : number
+            projected x coordinate(s) in metres
+        y : number
+            projected y coordinate(s) in metres
+        lowerleft : bool, optional
+            should the row numbering start at the bottom?
+            If yes, it returns lowerleft indices.
+
+        Returns
+        -------
+        tilename : str
+            long form of the tilename containing the lon-lat position
+        i : integer
+            pixel column number; starts with 0
+        j : integer
+            pixel row number; starts with 0
+
+        """
+        # get the overlapping tile
+        tile = self.create_tile(x=x, y=y)
+
+        i, j = tile.xy2ij(x=x, y=y, lowerleft=lowerleft)
+        tilename = tile.name
+
+        return tilename, i, j
+
+
     def round_xy2lowerleft(self, x, y):
         """
         Returns the lower-left coordinates of the tile in which the point,
@@ -1116,10 +1156,33 @@ class Tile(object):
         return geot
 
 
-    def ij2xy(self, i, j):
+    def geotransform_lowerleft(self):
+        """
+        returns the geographic geotransform list,
+        which is lowerleft-defined
+
+        Returns
+        -------
+        list
+            a list contain the geotransform elements (no rotation specified)
+            as (llx, x pixel spacing, 0, lly, 0, y pixel spacing)
+        """
+
+        geot = [self.llx, self.core.sampling, 0,
+                self.lly, 0, self.core.sampling]
+
+        return geot
+
+
+    def ij2xy(self, i, j, lowerleft=False):
         """
         Returns the projected coordinates of a tile pixel in the TilingSystem
-        for a given pixel pair defined by column and row
+        for a given pixel pair defined by column and row (pixel indices)
+
+        columns go from left to right
+        rows go either
+            top to bottom (lowerleft=False)
+            bottom to top (lowerleft=True)
 
         Parameters
         ----------
@@ -1127,6 +1190,9 @@ class Tile(object):
             pixel row number
         j : number
             pixel collumn number
+        lowerleft : bool, optional
+            should the row numbering start at the bottom?
+            If yes, it returns lowerleft indices.
 
         Returns
         -------
@@ -1136,7 +1202,10 @@ class Tile(object):
             y coordinate in the projection
         """
 
-        gt = self.geotransform()
+        if lowerleft:
+            gt = self.geotransform_lowerleft()
+        else:
+            gt = self.geotransform()
 
         x = gt[0] + i * gt[1] + j * gt[2]
         y = gt[3] + i * gt[4] + j * gt[5]
@@ -1148,10 +1217,15 @@ class Tile(object):
             return x, y
 
 
-    def xy2ij(self, x, y):
+    def xy2ij(self, x, y, lowerleft=False):
         """
         returns the column and row number (i, j)
         of a projection coordinate pair (x, y)
+
+        columns go from left to right
+        rows go either
+            top to bottom (lowerleft=False)
+            bottom to top (lowerleft=True)
 
         Parameters
         ----------
@@ -1159,22 +1233,33 @@ class Tile(object):
             x coordinate in the projection
         y : number
             y coordinate in the projection
+        lowerleft : bool, optional
+            should the row numbering start at the bottom?
+            If yes, it returns lowerleft indices.
 
         Returns
         -------
         i : integer
-            pixel row number
+            pixel column number; starts with 0
         j : integer
-            pixel column number
+            pixel row number; starts with 0
         """
 
-        gt = self.geotransform()
+        # get the geotransform
+        if lowerleft:
+            gt = self.geotransform_lowerleft()
+        else:
+            gt = self.geotransform()
 
-        # TODO: check if 1) round-to-nearest-int or 2) round-down-to-int
-        i = int(round(-1.0 * (gt[2] * gt[3] - gt[0] * gt[5] + gt[5] * x - gt[2] * y) /
-                      (gt[2] * gt[4] - gt[1] * gt[5])))
-        j = int(round(-1.0 * (-1 * gt[1] * gt[3] + gt[0] * gt[4] - gt[4] * x + gt[1] * y) /
-                      (gt[2] * gt[4] - gt[1] * gt[5])))
+        # get the indices
+        i = (-1.0 * (gt[2] * gt[3] - gt[0] * gt[5] + gt[5] * x - gt[2] * y) /
+                       (gt[2] * gt[4] - gt[1] * gt[5]))
+        j = (-1.0 * (-1 * gt[1] * gt[3] + gt[0] * gt[4] - gt[4] * x + gt[1] * y) /
+                       (gt[2] * gt[4] - gt[1] * gt[5]))
+
+        # round to lower-closest integer
+        i = math.floor(i)
+        j = math.floor(j)
 
         return i, j
 

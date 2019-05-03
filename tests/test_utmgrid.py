@@ -161,6 +161,34 @@ class TestBaseViaUTMGrid(unittest.TestCase):
         nptest.assert_allclose(row_should, row)
 
 
+    def test_lonlat2ij_in_tile(self):
+        """
+        Tests xy to tile array indices.
+        """
+        utm = UTMGrid(500)
+        column_should = 604
+        row_should = 276
+        tile_should = 'Z34N500M_E000N048T6'
+        tilename, i, j = utm.lonlat2ij_in_tile(18.507, 44.571, lowerleft=True)
+        nptest.assert_allclose(i, column_should)
+        nptest.assert_allclose(j, row_should)
+        nptest.assert_equal(tilename, tile_should)
+
+
+    def test_xy2ij_in_tile(self):
+        """
+        Tests xy to tile array indices.
+        """
+        utm = UTMGrid(500)
+        column_should = 604
+        row_should = 276
+        tile_should = 'Z34N500M_E000N048T6'
+        tilename, i, j = utm.Z34N.tilesys.xy2ij_in_tile(x=302051, y=4938318, lowerleft=True)
+        nptest.assert_allclose(i, column_should)
+        nptest.assert_allclose(j, row_should)
+        nptest.assert_equal(tilename, tile_should)
+
+
     def test_decode_tilename(self):
         """
         Tests the decoding of tilenames.
