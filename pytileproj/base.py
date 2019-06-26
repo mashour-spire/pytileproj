@@ -890,24 +890,25 @@ class TilingSystem(object):
         llxs = list(
             range(xmin // tsize_x * factor_x, xmax // tsize_x * factor_x + 1,
                   factor_x))
-        llys = list(
+        llys = list(reversed(
             range(ymin // tsize_y * factor_y, ymax // tsize_y * factor_y + 1,
-                  factor_y))
-        tx, ty = np.meshgrid(llxs, llys)
-        tx = tx.flatten()
-        ty = ty.flatten()
+                  factor_y)))
 
-        tilenames = list()
-        for i, _ in enumerate(tx):
-            tilenames.append(
-                self._encode_tilename(tx[i], ty[i]))
+        nx = len(llxs)
+        ny = len(llys)
+
+        tilenames = np.zeros((ny, nx), dtype=object)
+
+        for x in range(nx):
+            for y in range(ny):
+                tilenames[y, x] = self._encode_tilename(llxs[x], llys[y])
 
         return tilenames
 
 
     def create_tiles_overlapping_xybbox(self, bbox):
-        """Light-weight routine that returns
-           the name of tiles intersecting the bounding box.
+        """Light-weight routine that returns an 2D-array arranging the
+         tiles intersecting the bounding box.
 
         Parameters
         ----------
@@ -917,38 +918,38 @@ class TilingSystem(object):
 
         Return
         ------
-        tiles : list of Tiles()
-            list of Tiles() intersecting the bounding box,
-            with .active_subset_px() holding indices of the tile that cover
-            the bounding box.
+        tiles : array of Tiles()
+            Array of Tiles() intersecting the bounding box, arranged in the correct 2D-topology
+            With .active_subset_px() holding indices of the tile that cover the bounding box.
+
         """
-
         tilenames = self.identify_tiles_overlapping_xybbox(bbox)
-        tiles = list()
+        tiles = np.zeros_like(tilenames, dtype=object)
 
-        for t in tilenames:
+        for x in range(tilenames.shape[0]):
+            for y in range(tilenames.shape[1]):
 
-            tile = self.create_tile(name=t)
-            le, te, re, be = tile.active_subset_px
-            extent = tile.limits_m()
+                tile = self.create_tile(name=tilenames[x, y])
+                le, be, re, te = tile.active_subset_px
+                extent = tile.limits_m()
 
-            # left_edge
-            if extent[0] <= bbox[0]:
-                le = int((bbox[0] - extent[0]) // tile.core.sampling)
-            # top_edge
-            if extent[1] <= bbox[1]:
-                te = int((bbox[1] - extent[1]) // tile.core.sampling)
-            # right_edge
-            if extent[2] > bbox[2]:
-                re = int((bbox[2] - extent[2] + self.core.tile_xsize_m) // tile.core.sampling)
-            # bottom_edge
-            if extent[3] > bbox[3]:
-                be = int((bbox[3] - extent[3] + self.core.tile_ysize_m) // tile.core.sampling)
+                # left_edge
+                if extent[0] <= bbox[0]:
+                    le = int((bbox[0] - extent[0]) // tile.core.sampling)
+                # bottom_edge
+                if extent[1] <= bbox[1]:
+                    be = int((bbox[1] - extent[1]) // tile.core.sampling)
+                # right_edge
+                if extent[2] > bbox[2]:
+                    re = int((bbox[2] - extent[2] + self.core.tile_xsize_m) // tile.core.sampling)
+                # top_edge
+                if extent[3] > bbox[3]:
+                    te = int((bbox[3] - extent[3] + self.core.tile_ysize_m) // tile.core.sampling)
 
-            # subset holding indices of the tile that cover the bounding box.
-            tile.active_subset_px = le, te, re, be
+                # subset holding indices of the tile that cover the bounding box.
+                tile.active_subset_px = le, be, re, te
 
-            tiles.append(tile)
+                tiles[x, y] = tile
 
         return tiles
 
@@ -1098,7 +1099,7 @@ class Tile(object):
         tuple
             active subset as
             (xmin, ymin, xmax, ymax) =
-            (left edge, top edge, right edge, bottom edge)
+            (left edge, bottom edge, right edge, top edge)
         """
 
         return self._subset_px
@@ -1115,7 +1116,7 @@ class Tile(object):
         limits : tuple
             the limits of subsets as
             (xmin, ymin, xmax, ymax) =
-            (left edge, top edge, right edge, bottom edge)
+            (left edge, bottom edge, right edge, top edge)
 
         """
 
@@ -1137,6 +1138,17 @@ class Tile(object):
             raise ValueError('ymin >= ymax!')
 
         self._subset_px = limits
+
+
+    def get_active_subset_px_upperleft(self):
+        """
+        returns the .active_subset_px after conversion
+        to upperleft indices (numpy-style from top to bottom)
+
+        """
+
+        x = self._subset_px
+        return tuple((x[0], self.y_size_px - x[1], x[2], self.y_size_px - x[3]))
 
 
     def geotransform(self):
