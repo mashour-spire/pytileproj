@@ -39,7 +39,7 @@ import math
 import numpy as np
 from osgeo import osr
 
-import pytileproj.geometry as geometry
+import pytileproj.geometry as ptpgeometry
 import pyproj
 
 
@@ -217,13 +217,14 @@ class TiledProjectionSystem(object):
         pass
 
 
-    def locate_geometry_in_subgrids(self, geom):
+    def locate_geometry_in_subgrids(self, geometry):
         """
         finds overlapping subgrids of given geometry.
+        checks for crossing the antimeridian
 
         Attributes
         ----------
-        geom : OGRGeometry
+        geometry : OGRGeometry
             a geometry to be located
 
         Returns
@@ -234,8 +235,7 @@ class TiledProjectionSystem(object):
 
         covering_subgrid = list()
         for x in self.subgrids.keys():
-            geometry.intersect_geometry(geom, self.subgrids.get(x).polygon_geog)
-            if geom.Intersects(self.subgrids.get(x).polygon_geog):
+            if ptpgeometry.check_lonlat_intersection(geometry, self.subgrids.get(x).polygon_geog):
                 covering_subgrid.append(x)
 
         return covering_subgrid
@@ -293,13 +293,13 @@ class TiledProjectionSystem(object):
 
         # create point geometry
         lonlatprojection = TPSProjection(epsg=4326)
-        point_geom = geometry.create_point_geom(lon, lat,
+        point_geom = ptpgeometry.create_point_geom(lon, lat,
                                                 lonlatprojection.osr_spref)
 
         # search for co-locating subgrid
         subgrid = self.locate_geometry_in_subgrids(point_geom)[0]
 
-        x, y, = geometry.uv2xy(lon, lat,
+        x, y, = ptpgeometry.uv2xy(lon, lat,
                                lonlatprojection.osr_spref,
                                self.subgrids[subgrid].core.projection.osr_spref)
 
@@ -417,7 +417,7 @@ class TiledProjectionSystem(object):
                              " ".join(self.subgrids.keys()))
 
         if not geom_area and not extent:
-            print("Error: either geom or extent should be given as the ROI.")
+            print("Error: Either geom or extent should be given as the ROI!")
             return list()
 
         # obtain the geometry of ROI
@@ -425,7 +425,11 @@ class TiledProjectionSystem(object):
             if osr_spref is None:
                 projection = TPSProjection(epsg=4326)
                 osr_spref = projection.osr_spref
-            geom_area = geometry.extent2polygon(extent, osr_spref)
+            if extent[0] > extent[2] or extent[1] > extent[3]:
+                print("Error: Check order of the extent values!")
+                return list()
+
+            geom_area = ptpgeometry.extent2polygon(extent, osr_spref, segment=0.5)
 
         # load lat-lon spatial reference as the default
         geo_sr = TPSProjection(epsg=4326).osr_spref
@@ -442,7 +446,7 @@ class TiledProjectionSystem(object):
             else:
                 raise Warning('Please check unit of geometry '
                               'before reprojection!')
-            geom_area = geometry.transform_geometry(geom_area, geo_sr,
+            geom_area = ptpgeometry.transform_geometry(geom_area, geo_sr,
                                                     segment=max_segment)
 
         # intersect the given grid ids and the overlapped ids
@@ -494,13 +498,13 @@ class TiledProjection(object):
         """
 
         self.core = core
-        self.polygon_geog = geometry.segmentize_geometry(polygon_geog,
+        self.polygon_geog = ptpgeometry.segmentize_geometry(polygon_geog,
                                                          segment=0.5)
-        self.polygon_proj = geometry.transform_geometry(
+        self.polygon_proj = ptpgeometry.transform_geometry(
             self.polygon_geog, self.core.projection.osr_spref)
-        self.bbox_geog = geometry.get_geom_boundaries(
+        self.bbox_geog = ptpgeometry.get_geom_boundaries(
             self.polygon_geog, rounding=self.core.sampling / 1000000.0)
-        self.bbox_proj = geometry.get_geom_boundaries(
+        self.bbox_proj = ptpgeometry.get_geom_boundaries(
             self.polygon_proj, rounding=self.core.sampling)
 
         if tilingsystem is None:
@@ -572,7 +576,7 @@ class TiledProjection(object):
 
         return lon, lat
 
-
+    #BBM todo!
     def search_tiles_in_geometry(self, geom, coverland=True):
         """
         Search the tiles which are overlapping with the subgrid
@@ -613,8 +617,7 @@ class TiledProjection(object):
             max_segment = 50000
         else:
             raise Warning('Please check unit of geometry before reprojection!')
-        intersect = geometry.transform_geometry(intersect, grid_sr,
-                                                segment=max_segment)
+        intersect = ptpgeometry.transform_geometry(intersect, grid_sr, segment=max_segment)
 
         # get envelope of the Geometry and cal the bounding tile of the
         envelope = intersect.GetEnvelope()
@@ -638,7 +641,7 @@ class TiledProjection(object):
             y_min, y_max + self.core.tile_ysize_m, self.core.tile_ysize_m)
 
         for x, y in itertools.product(xr, yr):
-            geom_tile = geometry.extent2polygon(
+            geom_tile = ptpgeometry.extent2polygon(
                 (x, y, x + self.core.tile_xsize_m,
                  y + self.core.tile_xsize_m), grid_sr)
             if geom_tile.Intersects(intersect):
@@ -690,9 +693,9 @@ class TilingSystem(object):
         self.y0 = y0
         self.xstep = self.core.tile_xsize_m
         self.ystep = self.core.tile_ysize_m
-        self.polygon_proj = geometry.transform_geometry(
+        self.polygon_proj = ptpgeometry.transform_geometry(
             polygon_geog, self.core.projection.osr_spref)
-        self.bbox_proj = geometry.get_geom_boundaries(
+        self.bbox_proj = ptpgeometry.get_geom_boundaries(
             self.polygon_proj, rounding=self.core.sampling)
 
     def __getattr__(self, item):

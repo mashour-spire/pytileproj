@@ -37,6 +37,12 @@ import numpy as np
 from osgeo import ogr
 from osgeo import osr
 
+from shapely.geometry import Polygon
+from shapely.geometry import LineString
+from shapely.ops import linemerge
+from shapely.ops import unary_union
+from shapely.ops import polygonize
+
 
 def uv2xy(u, v, src_ref, dst_ref):
     """
@@ -312,6 +318,62 @@ def intersect_geometry(geometry1, geometry2):
     return intersection
 
 
+def check_lonlat_intersection(geometry1, geometry2):
+    """
+    checks if two geometries in lonlat space intersect.
+    geometry1 is split by the antimeridian (dateline)
+
+    Parameters
+    ----------
+    geometry1 : OGRGeomtery
+        geometry object in lonlat space
+        is split by the antimeridian
+    geometry2 : OGRGeomtery
+        geometry object
+        should be the large one
+
+    Returns
+    -------
+    boolean
+        does geometry1 intersect with geometry2?
+    """
+
+    geometry1c=geometry1.Clone()
+    geometry2c=geometry2.Clone()
+    geometry1 = None
+    geometry2 = None
+
+    polygons = cut_polygon_by_antimeridian(geometry1c)
+
+    bool = [x.Intersects(geometry2c) for x in polygons]
+
+    return any(bool)
+
+
+def cut_polygon_by_antimeridian(lonlat_polygon):
+
+    antimeridian = LineString([(180, -90), (180, 90)])
+
+    merged = linemerge([Polygon(lonlat_polygon.GetBoundary().GetPoints()).boundary, antimeridian])
+    borders = unary_union(merged)
+    polygons = polygonize(borders)
+
+    wrapped_polygons = []
+    for p in polygons:
+
+        point_coords = p.exterior.coords[:]
+        lons = [p[0] for p in point_coords]
+        if np.mean(lons) > 180:
+            wrapped_points = [(y[0] - 360, y[1], y[2]) if y[0] >= 180.0 else y for y in point_coords]
+        else:
+            wrapped_points = point_coords
+
+        new_poly = Polygon(wrapped_points)
+        wrapped_polygons.append(segmentize_geometry(ogr.CreateGeometryFromWkt(new_poly.wkt)))
+
+    return wrapped_polygons
+
+
 def get_geom_boundaries(geometry, rounding=1.0):
     """
     returns the envelope of the geometry
@@ -511,3 +573,109 @@ def setup_geom_kamchatka():
     poly_kamchatka.AssignSpatialReference(geom_global_sr)
 
     return poly_kamchatka
+
+
+def setup_test_geom_siberia_antimeridian():
+    """
+    Routine providing a geometry for testing
+
+    Returns
+    -------
+    poly_siberia_antim : OGRGeometry
+        4-corner polygon in Siberia, crossing the antimeridian
+    """
+
+    ring_global = ogr.Geometry(ogr.wkbLinearRing)
+    ring_global.AddPoint(177.6584965942706,67.04864900747906)
+    ring_global.AddPoint(179.0142461506587,65.34233852520839)
+    ring_global.AddPoint(-175.8199961320627,65.74423313395079)
+    ring_global.AddPoint(-176.8258419512602,67.46683765736415)
+    ring_global.AddPoint(177.6584965942706,67.04864900747906)
+
+    poly_siberia_antim = ogr.Geometry(ogr.wkbPolygon)
+    poly_siberia_antim.AddGeometry(ring_global)
+
+    geom_global_wkt = '''GEOGCS[\"WGS 84\",
+                           DATUM[\"WGS_1984\",
+                                 SPHEROID[\"WGS 84\", 6378137, 298.257223563,
+                                          AUTHORITY[\"EPSG\", \"7030\"]],
+                                 AUTHORITY[\"EPSG\", \"6326\"]],
+                           PRIMEM[\"Greenwich\", 0],
+                           UNIT[\"degree\", 0.0174532925199433],
+                           AUTHORITY[\"EPSG\", \"4326\"]]'''
+    geom_global_sr = osr.SpatialReference()
+    geom_global_sr.ImportFromWkt(geom_global_wkt)
+    poly_siberia_antim.AssignSpatialReference(geom_global_sr)
+
+    return poly_siberia_antim
+
+
+def setup_test_geom_siberia_antimeridian_180plus():
+    """
+    Routine providing a geometry for testing
+
+    Returns
+    -------
+    poly_siberia_antim_180plus : OGRGeometry
+        4-corner polygon in Siberia, crossing the antimeridian
+    """
+
+    ring_global = ogr.Geometry(ogr.wkbLinearRing)
+    ring_global.AddPoint(177.6584965942706,67.04864900747906)
+    ring_global.AddPoint(179.0142461506587,65.34233852520839)
+    ring_global.AddPoint(184.1800038679373,65.74423313395079)
+    ring_global.AddPoint(183.1741580487398,67.46683765736415)
+    ring_global.AddPoint(177.6584965942706,67.04864900747906)
+
+    poly_siberia_antim_180plus = ogr.Geometry(ogr.wkbPolygon)
+    poly_siberia_antim_180plus.AddGeometry(ring_global)
+
+    geom_global_wkt = '''GEOGCS[\"WGS 84\",
+                           DATUM[\"WGS_1984\",
+                                 SPHEROID[\"WGS 84\", 6378137, 298.257223563,
+                                          AUTHORITY[\"EPSG\", \"7030\"]],
+                                 AUTHORITY[\"EPSG\", \"6326\"]],
+                           PRIMEM[\"Greenwich\", 0],
+                           UNIT[\"degree\", 0.0174532925199433],
+                           AUTHORITY[\"EPSG\", \"4326\"]]'''
+    geom_global_sr = osr.SpatialReference()
+    geom_global_sr.ImportFromWkt(geom_global_wkt)
+    poly_siberia_antim_180plus.AssignSpatialReference(geom_global_sr)
+
+    return poly_siberia_antim_180plus
+
+
+def setup_test_geom_siberia_alaska():
+    """
+    Routine providing a geometry for testing
+
+    Returns
+    -------
+        poly_siberia_alaska : OGRGeometry
+        4-corner polygon over Siberia and Alaska, crossing antimeridian
+        and covering two Equi7Grid subgrids.
+    """
+
+    ring_global = ogr.Geometry(ogr.wkbLinearRing)
+    ring_global.AddPoint(177.6545884597184,67.05574774066811)
+    ring_global.AddPoint(179.0195867605756,65.33232820668778)
+    ring_global.AddPoint(198.4723636216472,66.06909015550372)
+    ring_global.AddPoint(198.7828129097253,68.14247939909886)
+    ring_global.AddPoint(177.6545884597184,67.05574774066811)
+
+    poly_siberia_alaska = ogr.Geometry(ogr.wkbPolygon)
+    poly_siberia_alaska.AddGeometry(ring_global)
+
+    geom_global_wkt = '''GEOGCS[\"WGS 84\",
+                           DATUM[\"WGS_1984\",
+                                 SPHEROID[\"WGS 84\", 6378137, 298.257223563,
+                                          AUTHORITY[\"EPSG\", \"7030\"]],
+                                 AUTHORITY[\"EPSG\", \"6326\"]],
+                           PRIMEM[\"Greenwich\", 0],
+                           UNIT[\"degree\", 0.0174532925199433],
+                           AUTHORITY[\"EPSG\", \"4326\"]]'''
+    geom_global_sr = osr.SpatialReference()
+    geom_global_sr.ImportFromWkt(geom_global_wkt)
+    poly_siberia_alaska.AssignSpatialReference(geom_global_sr)
+
+    return poly_siberia_alaska
