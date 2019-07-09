@@ -172,7 +172,7 @@ def open_geometry(fname, feature=0, format='shapefile'):
 
     Returns
     -------
-    OGRGeomtery
+    OGRGeometry
         a geometry from the input file as indexed by the feature number
     '''
 
@@ -237,7 +237,7 @@ def transform_geometry(geometry, osr_spref, segment=None):
 
     Parameters
     ----------
-    geometry : OGRGeomtery
+    geometry : OGRGeometry
         geometry object
     osr_spref : OGRSpatialReference
         spatial reference to what the geometry should be transformed to
@@ -247,7 +247,7 @@ def transform_geometry(geometry, osr_spref, segment=None):
 
     Returns
     -------
-    OGRGeomtery
+    OGRGeometry
         a geometry represented in the target spatial reference
 
     """
@@ -273,7 +273,7 @@ def segmentize_geometry(geometry, segment=0.5):
 
     Parameters
     ----------
-    geometry : OGRGeomtery
+    geometry : OGRGeometry
         geometry object
     segment : float
         for precision: distance in units of input osr_spref of longest
@@ -281,7 +281,7 @@ def segmentize_geometry(geometry, segment=0.5):
 
     Returns
     -------
-    OGRGeomtery
+    OGRGeometry
         a congruent geometry realised by more vertices along its shape
     """
 
@@ -295,16 +295,16 @@ def segmentize_geometry(geometry, segment=0.5):
 
 def intersect_geometry(geometry1, geometry2):
     """
-    returns the intersection of two geometries
+    returns the intersection of two point or polygon geometries
 
     Parameters
     ----------
-    geometry1, geometry2 : OGRGeomtery
+    geometry1, geometry2 : OGRGeometry
         geometry objects
 
     Returns
     -------
-    intersection : OGRGeomtery
+    intersection : OGRGeometry
         a geometry representing the intersection area
     """
 
@@ -320,15 +320,45 @@ def intersect_geometry(geometry1, geometry2):
 
 def check_lonlat_intersection(geometry1, geometry2):
     """
-    checks if two geometries in lonlat space intersect.
-    geometry1 is split by the antimeridian (dateline)
+    checks if two polygon geometries intersect in lonlat space.
+    geometry1 is split at the antimeridian
+    (i.e. the 180 degree dateline)
 
     Parameters
     ----------
-    geometry1 : OGRGeomtery
-        geometry object in lonlat space
+    geometry1 : OGRGeometry
+        polygon geometry object in lonlat space
         is split by the antimeridian
-    geometry2 : OGRGeomtery
+    geometry2 : OGRGeometry
+        polygon geometry object
+        should be the large one
+
+    Returns
+    -------
+    boolean
+        does geometry1 intersect with geometry2?
+    """
+
+    area = get_lonlat_intersection(geometry1, geometry2)
+
+    if area.Area() == 0.0:
+        return False
+    if area.Area() != 0.0:
+        return True
+
+
+def get_lonlat_intersection(geometry1, geometry2):
+    """
+    gets the intersect in lonlat space.
+    geometry1 is split at the antimeridian
+    (i.e. the 180 degree dateline)
+
+    Parameters
+    ----------
+    geometry1 : OGRGeometry
+        polygon geometry object in lonlat space
+        is split by the antimeridian
+    geometry2 : OGRGeometry
         geometry object
         should be the large one
 
@@ -343,22 +373,45 @@ def check_lonlat_intersection(geometry1, geometry2):
     geometry1 = None
     geometry2 = None
 
-    polygons = cut_polygon_by_antimeridian(geometry1c)
+    polygons = split_polygon_by_antimeridian(geometry1c)
 
-    bool = [x.Intersects(geometry2c) for x in polygons]
-
-    return any(bool)
+    return polygons.Intersection(geometry2c)
 
 
-def cut_polygon_by_antimeridian(lonlat_polygon):
+def split_polygon_by_antimeridian(lonlat_polygon):
+    """
+    Function that splits a polygon at the antimeridian
+    (i.e. the 180 degree dateline)
 
+    Parameters
+    ----------
+    lonlat_polygon : OGRGeometry
+        geometry object in lonlat space
+        to be split by the antimeridian
+    Returns
+    -------
+    wrapped_polygons : OGRGeometry
+        MULTIPOLYGON comprising east and west parts of lonlat_polygon
+        contains only one POLYGON if no intersect with antimeridian is given
+
+    """
+
+    # define the antimeridain
     antimeridian = LineString([(180, -90), (180, 90)])
 
+    # use shapely for the splitting
     merged = linemerge([Polygon(lonlat_polygon.GetBoundary().GetPoints()).boundary, antimeridian])
     borders = unary_union(merged)
     polygons = polygonize(borders)
 
-    wrapped_polygons = []
+    # setup OGR multipolygon
+    wrapped_polygons = ogr.Geometry(ogr.wkbMultiPolygon)
+    geo_sr = osr.SpatialReference()
+    geo_sr.SetWellKnownGeogCS("EPSG:4326")
+    wrapped_polygons.AssignSpatialReference(geo_sr)
+
+    # wrap the longitude coordinates
+    # to get only longitudes out out [0, 180] or [-180, 0]
     for p in polygons:
 
         point_coords = p.exterior.coords[:]
@@ -369,7 +422,7 @@ def cut_polygon_by_antimeridian(lonlat_polygon):
             wrapped_points = point_coords
 
         new_poly = Polygon(wrapped_points)
-        wrapped_polygons.append(segmentize_geometry(ogr.CreateGeometryFromWkt(new_poly.wkt)))
+        wrapped_polygons.AddGeometry(ogr.CreateGeometryFromWkt(new_poly.wkt))
 
     return wrapped_polygons
 
@@ -412,7 +465,7 @@ def extent2polygon(extent, osr_spref, segment=None):
 
     Returns
     -------
-    geom_area : OGRGeomtery
+    geom_area : OGRGeometry
         a geometry representing the input extent as
         a) polygon-geometry when defined by a rectangle extent
         b) point-geometry when defined by extent through tuples of coordinates
@@ -445,20 +498,21 @@ def extent2polygon(extent, osr_spref, segment=None):
 
     return geom_area
 
+
 def round_vertices_of_polygon(geometry, decimals=0):
     """
     'Cleans' the vertices of a polygon, so that it has rounded coordinates.
 
     Parameters
     ----------
-    geometry : OGRGeomtery
+    geometry : OGRGeometry
         a polygon geometry
     decimals : int
         optional. rounding precision. default is 0.
 
     Returns
     -------
-    geometry_out : OGRGeomtery
+    geometry_out : OGRGeometry
         a polygon geometry with rounded vertices
     """
 
@@ -491,7 +545,7 @@ def _points2geometry(coords, osr_spref):
 
     Returns
     -------
-    geom_area : OGRGeomtery
+    geom_area : OGRGeometry
         a point-geometry representing the input tuples of coordinates
     """
 
@@ -573,41 +627,6 @@ def setup_geom_kamchatka():
     poly_kamchatka.AssignSpatialReference(geom_global_sr)
 
     return poly_kamchatka
-
-
-def setup_test_geom_siberia_antimeridian():
-    """
-    Routine providing a geometry for testing
-
-    Returns
-    -------
-    poly_siberia_antim : OGRGeometry
-        4-corner polygon in Siberia, crossing the antimeridian
-    """
-
-    ring_global = ogr.Geometry(ogr.wkbLinearRing)
-    ring_global.AddPoint(177.6584965942706,67.04864900747906)
-    ring_global.AddPoint(179.0142461506587,65.34233852520839)
-    ring_global.AddPoint(-175.8199961320627,65.74423313395079)
-    ring_global.AddPoint(-176.8258419512602,67.46683765736415)
-    ring_global.AddPoint(177.6584965942706,67.04864900747906)
-
-    poly_siberia_antim = ogr.Geometry(ogr.wkbPolygon)
-    poly_siberia_antim.AddGeometry(ring_global)
-
-    geom_global_wkt = '''GEOGCS[\"WGS 84\",
-                           DATUM[\"WGS_1984\",
-                                 SPHEROID[\"WGS 84\", 6378137, 298.257223563,
-                                          AUTHORITY[\"EPSG\", \"7030\"]],
-                                 AUTHORITY[\"EPSG\", \"6326\"]],
-                           PRIMEM[\"Greenwich\", 0],
-                           UNIT[\"degree\", 0.0174532925199433],
-                           AUTHORITY[\"EPSG\", \"4326\"]]'''
-    geom_global_sr = osr.SpatialReference()
-    geom_global_sr.ImportFromWkt(geom_global_wkt)
-    poly_siberia_antim.AssignSpatialReference(geom_global_sr)
-
-    return poly_siberia_antim
 
 
 def setup_test_geom_siberia_antimeridian_180plus():

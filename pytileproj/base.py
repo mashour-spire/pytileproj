@@ -234,12 +234,18 @@ class TiledProjectionSystem(object):
         """
 
         covering_subgrid = list()
-        for x in self.subgrids.keys():
-            if ptpgeometry.check_lonlat_intersection(geometry, self.subgrids.get(x).polygon_geog):
-                covering_subgrid.append(x)
+
+        if geometry.GetGeometryName() in ['POLYGON', 'MULTIPOLYGON']:
+            for x in self.subgrids.keys():
+                if ptpgeometry.check_lonlat_intersection(geometry, self.subgrids.get(x).polygon_geog):
+                    covering_subgrid.append(x)
+
+        if geometry.GetGeometryName() in ['POINT', 'MULTIPOINT']:
+            for x in self.subgrids.keys():
+                if geometry.Intersects(self.subgrids.get(x).polygon_geog):
+                    covering_subgrid.append(x)
 
         return covering_subgrid
-
 
     def lonlat2xy(self, lon, lat, subgrid=None):
         """
@@ -425,9 +431,10 @@ class TiledProjectionSystem(object):
             if osr_spref is None:
                 projection = TPSProjection(epsg=4326)
                 osr_spref = projection.osr_spref
-            if extent[0] > extent[2] or extent[1] > extent[3]:
-                print("Error: Check order of the extent values!")
-                return list()
+            if not isinstance(extent[0], tuple):
+                if extent[0] > extent[2] or extent[1] > extent[3]:
+                    print("Error: Check order of the extent values!")
+                    return list()
 
             geom_area = ptpgeometry.extent2polygon(extent, osr_spref, segment=0.5)
 
@@ -576,15 +583,15 @@ class TiledProjection(object):
 
         return lon, lat
 
-    #BBM todo!
-    def search_tiles_in_geometry(self, geom, coverland=True):
+
+    def search_tiles_in_geometry(self, geometry, coverland=True):
         """
         Search the tiles which are overlapping with the subgrid
 
         Parameters
         ----------
-        geom : OGRGeometry
-            A polygon geometry representing the region of interest.
+        geometry : OGRGeometry
+            A point or polygon geometry representing the region of interest.
         coverland : Boolean
             option to search for tiles covering land at any point in the tile
 
@@ -597,27 +604,37 @@ class TiledProjection(object):
 
         overlapped_tiles = list()
 
-        # check if geom intersects subgrid
-        if geom.Intersects(self.polygon_geog):
+        if geometry.GetGeometryName() == 'MULTIPOINT':
+            if geometry.Intersects(self.polygon_geog):
+                # get intersect area with subgrid in latlon
+                intersect = geometry.Intersection(self.polygon_geog)
+                intersect = ptpgeometry.transform_geometry(intersect,
+                                                   self.projection.osr_spref)
+            else:
+                return overlapped_tiles
+
+        if geometry.GetGeometryName() == 'POLYGON':
+
             # get intersect area with subgrid in latlon
-            intersect = geom.Intersection(self.polygon_geog)
-        else:
-            return overlapped_tiles
+            intersect = ptpgeometry.get_lonlat_intersection(geometry, self.polygon_geog)
 
-        # get spatial reference of subgrid in grid projection
-        grid_sr = self.projection.osr_spref
+            # check if geom intersects subgrid
+            if intersect.Area() == 0.0:
+                return overlapped_tiles
 
-        # transform intersection geometry back to the spatial reference system
-        # of the subgrid.
-        # segmentise for high precision during reprojection.
-        projected = intersect.GetSpatialReference().IsProjected()
-        if projected == 0:
-            max_segment = 0.5
-        elif projected == 1:
-            max_segment = 50000
-        else:
-            raise Warning('Please check unit of geometry before reprojection!')
-        intersect = ptpgeometry.transform_geometry(intersect, grid_sr, segment=max_segment)
+            # transform intersection geometry back to the spatial ref system of the subgrid.
+            # segmentise for high precision during reprojection.
+            projected = intersect.GetSpatialReference().IsProjected()
+            if projected == 0:
+                max_segment = 0.5
+            elif projected == 1:
+                max_segment = 50000
+            else:
+                raise Warning('Please check unit of geometry before reprojection!')
+
+            intersect = ptpgeometry.transform_geometry(intersect,
+                                                       self.projection.osr_spref,
+                                                       segment=max_segment)
 
         # get envelope of the Geometry and cal the bounding tile of the
         envelope = intersect.GetEnvelope()
@@ -635,15 +652,13 @@ class TiledProjection(object):
         y_min = 0 if y_min < 0 else y_min
 
         # get overlapped tiles
-        xr = np.arange(
-            x_min, x_max + self.core.tile_xsize_m, self.core.tile_xsize_m)
-        yr = np.arange(
-            y_min, y_max + self.core.tile_ysize_m, self.core.tile_ysize_m)
+        xr = np.arange(x_min, x_max + self.core.tile_xsize_m, self.core.tile_xsize_m)
+        yr = np.arange(y_min, y_max + self.core.tile_ysize_m, self.core.tile_ysize_m)
 
         for x, y in itertools.product(xr, yr):
             geom_tile = ptpgeometry.extent2polygon(
                 (x, y, x + self.core.tile_xsize_m,
-                 y + self.core.tile_xsize_m), grid_sr)
+                 y + self.core.tile_xsize_m), self.projection.osr_spref)
             if geom_tile.Intersects(intersect):
                 ftile = self.tilesys.point2tilename(x, y)
                 if not coverland or self.tilesys.check_tile_covers_land(ftile):
@@ -864,7 +879,7 @@ class TilingSystem(object):
         return a
 
 
-    def identify_tiles_overlapping_xybbox(self, bbox):
+    def identify_tiles_overlapping_xybbox(self, bbox, flatten=True):
         """Light-weight routine that returns
            the name of tiles overlapping the bounding box.
 
@@ -873,11 +888,14 @@ class TilingSystem(object):
         bbox : list
             list of projected coordinates limiting the bounding box.
             scheme: [xmin, ymin, xmax, ymax]
+        flatten : bool
+            should the output be a list, or a 2D-array?
+            default is a list
 
         Return
         ------
-        tilenames : list
-            list of tilenames overlapping the bounding box
+        tilenames : list or array
+            tilenames overlapping the bounding box
         """
 
         xmin, ymin, xmax, ymax = bbox
@@ -906,7 +924,10 @@ class TilingSystem(object):
             for y in range(ny):
                 tilenames[y, x] = self._encode_tilename(llxs[x], llys[y])
 
-        return tilenames
+        if flatten:
+            return list(tilenames.flatten())
+        else:
+            return tilenames
 
 
     def create_tiles_overlapping_xybbox(self, bbox):
@@ -926,7 +947,7 @@ class TilingSystem(object):
             With .active_subset_px() holding indices of the tile that cover the bounding box.
 
         """
-        tilenames = self.identify_tiles_overlapping_xybbox(bbox)
+        tilenames = self.identify_tiles_overlapping_xybbox(bbox, flatten=False)
         tiles = np.zeros_like(tilenames, dtype=object)
 
         for x in range(tilenames.shape[0]):
