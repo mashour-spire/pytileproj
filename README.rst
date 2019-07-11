@@ -45,7 +45,7 @@ This package should be installable through pip:
 
     pip install pytileproj
 
-Installs for numba, scripy and gdal are required from conda or conda-forge.
+Installs for scipy and gdal are required from conda or conda-forge.
 
 Contribute
 ==========
@@ -70,7 +70,7 @@ like system. Miniconda will be installed into ``$HOME/miniconda``.
    wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
    bash miniconda.sh -b -p $HOME/miniconda
    export PATH="$HOME/miniconda/bin:$PATH"
-   conda create -n pytileproj_env python=2.7 numpy pyproj gdal
+   conda create -n pytileproj_env python=3.6 numpy scipy pip gdal pyproj shapely
    source activate pytileproj_env
 
 

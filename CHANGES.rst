@@ -2,11 +2,25 @@
 Changelog
 =========
 
-Version v0.0.X
+Version v0.0.10
+===============
+
+- fixed issues on antimeridian/dateline
+
+Version v0.0.9
 ==============
 
-- Update readme structure
-- Add read the docs
+- minor update on lonlat2xy functions
+
+Version v0.0.8
+==============
+
+- minor update on tilesystem functions
+
+Version v0.0.7
+==============
+
+- Includes now the support for the UTM grid
 
 Version v0.0.6
 ==============
