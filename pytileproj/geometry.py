@@ -427,7 +427,7 @@ def split_polygon_by_antimeridian(lonlat_polygon):
     return wrapped_polygons
 
 
-def get_geom_boundaries(geometry, rounding=1.0):
+def get_geometry_envelope(geometry, rounding=1.0):
     """
     returns the envelope of the geometry
 
@@ -439,13 +439,16 @@ def get_geom_boundaries(geometry, rounding=1.0):
         precision
     Returns
     -------
-    limits : list of numbers
+    tuple
         rounded coordinates of geometry-envelope
+        as (xmin, ymin, xmax, ymax)
 
     """
-    limits = geometry.GetEnvelope()
-    limits = [int(x / rounding) * rounding for x in limits]
-    return limits
+    li = geometry.GetEnvelope()
+    li = [int(x / rounding) * rounding for x in li]
+
+    # shuffle order to [xmin, ymin, xmax, ymax]
+    return tuple((li[0], li[2], li[1], li[3]))
 
 
 def extent2polygon(extent, osr_spref, segment=None):

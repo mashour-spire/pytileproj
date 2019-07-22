@@ -743,9 +743,9 @@ class UTMTilingSystem(TilingSystem):
         return subgrid_id, sampling, tile_size_m, llx * 100000, lly * 100000, tilecode
 
 
-    def find_overlapping_tilenames(self, tilename,
-                                   target_sampling=None,
-                                   target_tiletype=None):
+    def get_congruent_tiles_from_tilename(self, tilename,
+                                          target_sampling=None,
+                                          target_tiletype=None):
         """
         finds the "family tiles", which share a congruent or partial overlap,
         but with different resolution and tilecode

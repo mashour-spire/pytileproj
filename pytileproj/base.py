@@ -349,8 +349,42 @@ class TiledProjectionSystem(object):
         pass
 
 
-    def get_tile_limits_m(self, tilename):
-        return self.create_tile(tilename).limits_m()
+    def get_tile_bbox_geog(self, tilename):
+        """
+        returns the envelope of the tile in the lonlat-space
+
+        Parameters
+        ----------
+        tilename : str
+            name of the tile; e.g EU500M_E012N018T6 or E012N018T6
+
+        Returns
+        -------
+        tuple
+            bounding box of subgrid
+            as (lonmin, latmin, lonmax, latmax)
+
+        """
+        return self.create_tile(tilename).bbox_geog
+
+
+    def get_tile_bbox_proj(self, tilename):
+        """
+        returns the envelope of the tile in the projected space
+
+        Parameters
+        ----------
+        tilename : str
+            name of the tile; e.g EU500M_E012N018T6 or E012N018T6
+
+        Returns
+        -------
+        tuple
+            bounding box of subgrid
+            as (xmin, ymin, xmax, ymax)
+
+        """
+        return self.create_tile(tilename).bbox_proj
 
 
     @abc.abstractmethod
@@ -464,8 +498,8 @@ class TiledProjectionSystem(object):
         overlapped_tiles = list()
         for sgrid_id in subgrid_ids:
             overlapped_tiles.extend(
-                self.subgrids[sgrid_id].search_tiles_in_geometry(geom_area,
-                                                        coverland=coverland))
+                self.subgrids[sgrid_id].search_tiles_over_geometry(geom_area,
+                                                                   coverland=coverland))
         return overlapped_tiles
 
 
@@ -505,13 +539,12 @@ class TiledProjection(object):
         """
 
         self.core = core
-        self.polygon_geog = ptpgeometry.segmentize_geometry(polygon_geog,
-                                                         segment=0.5)
+        self.polygon_geog = ptpgeometry.segmentize_geometry(polygon_geog, segment=0.5)
         self.polygon_proj = ptpgeometry.transform_geometry(
             self.polygon_geog, self.core.projection.osr_spref)
-        self.bbox_geog = ptpgeometry.get_geom_boundaries(
+        self.bbox_geog = ptpgeometry.get_geometry_envelope(
             self.polygon_geog, rounding=self.core.sampling / 1000000.0)
-        self.bbox_proj = ptpgeometry.get_geom_boundaries(
+        self.bbox_proj = ptpgeometry.get_geometry_envelope(
             self.polygon_proj, rounding=self.core.sampling)
 
         if tilingsystem is None:
@@ -535,25 +568,25 @@ class TiledProjection(object):
         Returns
         -------
         tuple
-            boundind box of subgrid
-            as (lonmin, lonmax, latmin, latmax)
+            bounding box of subgrid
+            as (lonmin, latmin, lonmax, latmax)
+
         """
-        bbox = self.polygon_geog.GetEnvelope()
-        return bbox
+        return self.polygon_geog.GetEnvelope()
 
 
     def get_bbox_proj(self):
         """
-        Returns the limits of the subgrid in the  rojected space.
+        Returns the limits of the subgrid in the projected space.
 
         Returns
         -------
         tuple
             boundind box of subgrid
-            as (xmin, xmax, ymin, ymax)
+            as (xmin, ymin, xmax, ymax)
+
         """
-        bbox = self.polygon_proj.GetEnvelope()
-        return bbox
+        return self.polygon_proj.GetEnvelope()
 
 
     def xy2lonlat(self, x, y):
@@ -584,9 +617,9 @@ class TiledProjection(object):
         return lon, lat
 
 
-    def search_tiles_in_geometry(self, geometry, coverland=True):
+    def search_tiles_over_geometry(self, geometry, coverland=True):
         """
-        Search the tiles which are overlapping with the subgrid
+        Search tiles of the subgrid that are overlapping with the geometry.
 
         Parameters
         ----------
@@ -600,15 +633,15 @@ class TiledProjection(object):
         overlapped_tiles : list
             Return a list of the overlapped tiles' name.
             If not found, return empty list.
-        """
 
+        """
         overlapped_tiles = list()
 
         if geometry.GetGeometryName() == 'MULTIPOINT':
             if geometry.Intersects(self.polygon_geog):
                 # get intersect area with subgrid in latlon
-                intersect = geometry.Intersection(self.polygon_geog)
-                intersect = ptpgeometry.transform_geometry(intersect,
+                intersect_geometry = geometry.Intersection(self.polygon_geog)
+                intersect_geometry = ptpgeometry.transform_geometry(intersect_geometry,
                                                    self.projection.osr_spref)
             else:
                 return overlapped_tiles
@@ -632,37 +665,28 @@ class TiledProjection(object):
             else:
                 raise Warning('Please check unit of geometry before reprojection!')
 
-            intersect = ptpgeometry.transform_geometry(intersect,
+            intersect_geometry = ptpgeometry.transform_geometry(intersect,
                                                        self.projection.osr_spref,
                                                        segment=max_segment)
 
         # get envelope of the Geometry and cal the bounding tile of the
-        envelope = intersect.GetEnvelope()
-        x_min = int(envelope[0]) // self.core.tile_xsize_m \
-            * self.core.tile_xsize_m
-        x_max = (int(envelope[1]) // self.core.tile_xsize_m + 1) \
-            * self.core.tile_xsize_m
-        y_min = int(envelope[2]) // self.core.tile_ysize_m * \
-            self.core.tile_ysize_m
-        y_max = (int(envelope[3]) // self.core.tile_ysize_m + 1) * \
-            self.core.tile_ysize_m
-
-        # make sure x_min and y_min greater or equal 0
-        x_min = 0 if x_min < 0 else x_min
-        y_min = 0 if y_min < 0 else y_min
+        envelope = ptpgeometry.get_geometry_envelope(intersect_geometry)
 
         # get overlapped tiles
-        xr = np.arange(x_min, x_max + self.core.tile_xsize_m, self.core.tile_xsize_m)
-        yr = np.arange(y_min, y_max + self.core.tile_ysize_m, self.core.tile_ysize_m)
+        tiles = self.tilesys.identify_tiles_overlapping_xybbox(envelope)
 
-        for x, y in itertools.product(xr, yr):
-            geom_tile = ptpgeometry.extent2polygon(
-                (x, y, x + self.core.tile_xsize_m,
-                 y + self.core.tile_xsize_m), self.projection.osr_spref)
-            if geom_tile.Intersects(intersect):
-                ftile = self.tilesys.point2tilename(x, y)
-                if not coverland or self.tilesys.check_tile_covers_land(ftile):
-                    overlapped_tiles.append(ftile)
+        for tile in tiles:
+
+            # get tile object
+            t = self.tilesys.create_tile(tile)
+
+            # get only tile that overlaps with intersect_geometry
+            if t.get_extent_geometry_proj().Intersects(intersect_geometry):
+
+                # get only tile if coverland is satisfied
+                if not coverland or self.tilesys.check_tile_covers_land(t.name):
+                    overlapped_tiles.append(t.name)
+
 
         return overlapped_tiles
 
@@ -708,10 +732,8 @@ class TilingSystem(object):
         self.y0 = y0
         self.xstep = self.core.tile_xsize_m
         self.ystep = self.core.tile_ysize_m
-        self.polygon_proj = ptpgeometry.transform_geometry(
-            polygon_geog, self.core.projection.osr_spref)
-        self.bbox_proj = ptpgeometry.get_geom_boundaries(
-            self.polygon_proj, rounding=self.core.sampling)
+        self.polygon_proj = ptpgeometry.transform_geometry(polygon_geog, self.core.projection.osr_spref)
+        self.bbox_proj = ptpgeometry.get_geometry_envelope(self.polygon_proj, rounding=self.core.sampling)
 
     def __getattr__(self, item):
         '''
@@ -898,8 +920,8 @@ class TilingSystem(object):
             tilenames overlapping the bounding box
         """
 
-        xmin, ymin, xmax, ymax = bbox
-        if (xmin >= xmax) or (ymin >= ymax):
+        xmin, ymin, xmax, ymax = [round(x) for x in bbox]
+        if (xmin > xmax) or (ymin > ymax):
             raise ValueError("Check order of coordinates of bbox! "
                              "Scheme: [xmin, ymin, xmax, ymax]")
 
@@ -909,11 +931,9 @@ class TilingSystem(object):
         factor_y = tsize_y
 
         llxs = list(
-            range(xmin // tsize_x * factor_x, xmax // tsize_x * factor_x + 1,
-                  factor_x))
+            range(xmin // tsize_x * factor_x, xmax // tsize_x * factor_x + 1, factor_x))
         llys = list(reversed(
-            range(ymin // tsize_y * factor_y, ymax // tsize_y * factor_y + 1,
-                  factor_y)))
+            range(ymin // tsize_y * factor_y, ymax // tsize_y * factor_y + 1, factor_y)))
 
         nx = len(llxs)
         ny = len(llys)
@@ -955,7 +975,7 @@ class TilingSystem(object):
 
                 tile = self.create_tile(name=tilenames[x, y])
                 le, be, re, te = tile.active_subset_px
-                extent = tile.limits_m()
+                extent = tile.bbox_proj
 
                 # left_edge
                 if extent[0] <= bbox[0]:
@@ -978,18 +998,18 @@ class TilingSystem(object):
         return tiles
 
     @abc.abstractmethod
-    def find_overlapping_tilenames(self, tilename,
-                                   target_sampling=None,
-                                   target_tiletype=None):
+    def get_congruent_tiles_from_tilename(self, tilename,
+                                          target_sampling=None,
+                                          target_tiletype=None):
         """
         finds the "family tiles", which share a congruent or partial overlap,
-        but with different resolution and tilecode
+        but with different sampling and tilecode
 
         Parameters
         ----------
         tilename : str
-            the tilename in longform e.g. 'Z17S500M_E000N018T6'
-            or in shortform e.g. 'E000N018T6'.
+            the tilename in longform e.g. 'EU500M_E012N018T6'
+            or in shortform e.g. 'E012N018T6'.
         target_sampling : int
             the sampling of the target grid system
         target_tiletype : string
@@ -1011,9 +1031,9 @@ class TilingSystem(object):
         return []
 
 
-    def get_covering_tiles(self, tiles,
-                           target_sampling=None,
-                           target_tiletype=None):
+    def collect_congruent_tiles(self, tiles,
+                                target_sampling=None,
+                                target_tiletype=None):
         """
         Collects all tiles of other_tile_type covering the list of given tiles.
 
@@ -1037,9 +1057,9 @@ class TilingSystem(object):
 
         cover_tiles = []
         for t in tiles:
-            cover_tiles += self.find_overlapping_tilenames(t,
-                                         target_sampling=target_sampling,
-                                         target_tiletype=target_tiletype)
+            cover_tiles += self.get_congruent_tiles_from_tilename(t,
+                                                  target_sampling=target_sampling,
+                                                  target_tiletype=target_tiletype)
 
         return list(set(cover_tiles))
 
@@ -1068,6 +1088,7 @@ class Tile(object):
         """
 
         self.core = core
+
         self.name = name
         self.typename = core.tiletype
         self.llx = xll
@@ -1075,6 +1096,14 @@ class Tile(object):
         self.x_size_px = int(self.core.tile_xsize_m / self.core.sampling)
         self.y_size_px = int(self.core.tile_ysize_m / self.core.sampling)
         self._subset_px = (0, 0, self.x_size_px, self.y_size_px)
+
+        self.polygon_proj = self.get_extent_geometry_proj()
+        self.polygon_geog = self.get_extent_geometry_geog()
+        self.bbox_proj = ptpgeometry.get_geometry_envelope(self.polygon_proj,
+                                                           rounding=self.core.sampling)
+        self.bbox_geog = ptpgeometry.get_geometry_envelope(self.polygon_geog,
+                                                           rounding=0.000001)
+
 
     def __getattr__(self, item):
         '''
@@ -1099,7 +1128,7 @@ class Tile(object):
         return (self.x_size_px, self.y_size_px)
 
 
-    def limits_m(self):
+    def _limits_m(self):
         """
         returns the limits of the tile in projected coordinates (in metres)
 
@@ -1109,8 +1138,39 @@ class Tile(object):
             limits in the terms of (xmin, ymin, xmax, ymax)
         """
 
-        return (self.llx, self.lly,
-                self.llx + self.core.tile_xsize_m, self.lly + self.core.tile_ysize_m)
+        return (self.llx,
+                self.lly,
+                self.llx + self.core.tile_xsize_m,
+                self.lly + self.core.tile_ysize_m)
+
+
+    def get_extent_geometry_proj(self):
+        """
+        returns the extent-geometry of the tile in the projected space.
+
+        Returns
+        -------
+        OGRGeometry
+
+        """
+        return ptpgeometry.extent2polygon(self._limits_m(), self.core.projection.osr_spref)
+
+
+    def get_extent_geometry_geog(self):
+        """
+        returns the extent-geometry of the tile in the lon-lat-space.
+
+        Returns
+        -------
+        OGRGeometry
+
+        """
+        tile_geom = self.polygon_proj
+
+        geo_sr = osr.SpatialReference()
+        geo_sr.SetWellKnownGeogCS("EPSG:4326")
+
+        return ptpgeometry.transform_geometry(tile_geom, geo_sr, segment=25000)
 
 
     @property

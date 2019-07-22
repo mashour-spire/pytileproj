@@ -222,25 +222,25 @@ class TestBaseViaUTMGrid(unittest.TestCase):
 
         tiles1_should = ['Z33N025M_E000N006T3', 'Z33N025M_E000N009T3',
                          'Z33N025M_E003N006T3', 'Z33N025M_E003N009T3']
-        tiles1 = utm_500.Z33N.tilesys.find_overlapping_tilenames(
+        tiles1 = utm_500.Z33N.tilesys.get_congruent_tiles_from_tilename(
             'Z33N500M_E000N006T6',
             target_sampling=25)
         assert sorted(tiles1) == sorted(tiles1_should)
 
         tiles2_should = ['E000N006T3', 'E000N009T3', 'E003N006T3',
                          'E003N009T3']
-        tiles2 = utm_500.Z33N.tilesys.find_overlapping_tilenames('E000N006T6',
-                                                              target_tiletype='T3')
+        tiles2 = utm_500.Z33N.tilesys.get_congruent_tiles_from_tilename('E000N006T6',
+                                                                        target_tiletype='T3')
         assert sorted(tiles2) == sorted(tiles2_should)
 
         tiles3_should = ['Z33N500M_E000N012T6']
-        tiles3 = utm_10.Z33N.tilesys.find_overlapping_tilenames('E004N015T1',
-                                                             target_sampling=500)
+        tiles3 = utm_10.Z33N.tilesys.get_congruent_tiles_from_tilename('E004N015T1',
+                                                                       target_sampling=500)
         assert sorted(tiles3) == sorted(tiles3_should)
 
         tiles4_should = ['E003N009T3']
-        tiles4 = utm_10.Z33N.tilesys.find_overlapping_tilenames('E004N011T1',
-                                                             target_tiletype='T3')
+        tiles4 = utm_10.Z33N.tilesys.get_congruent_tiles_from_tilename('E004N011T1',
+                                                                       target_tiletype='T3')
         assert sorted(tiles4) == sorted(tiles4_should)
 
 
@@ -378,12 +378,12 @@ class TestBaseViaUTMGrid(unittest.TestCase):
         target_sampling = utm_500.core.sampling
 
         # invoke the results as tile name in short form
-        coarse_tiles_shortform = utm_10.Z33N.tilesys.get_covering_tiles(fine_tiles,
-                                                 target_tiletype=target_tiletype)
+        coarse_tiles_shortform = utm_10.Z33N.tilesys.collect_congruent_tiles(fine_tiles,
+                                                                             target_tiletype=target_tiletype)
 
         # invoke the results as tile name in long form
-        coarse_tiles_longform = utm_10.Z33N.tilesys.get_covering_tiles(fine_tiles,
-                                               target_sampling=target_sampling)
+        coarse_tiles_longform = utm_10.Z33N.tilesys.collect_congruent_tiles(fine_tiles,
+                                                                            target_sampling=target_sampling)
 
         assert sorted(coarse_tiles_shortform) == ['E000N054T6', 'E000N060T6']
         assert sorted(coarse_tiles_longform) == ['Z33N500M_E000N054T6', 'Z33N500M_E000N060T6']
