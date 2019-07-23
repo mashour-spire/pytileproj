@@ -70,7 +70,7 @@ def uv2xy(u, v, src_ref, dst_ref):
     return x, y
 
 
-def create_multipoint_geom(u, v, osr_spref):
+def create_multipoint_geometry(u, v, osr_spref):
     """
     wrapper; creates multipoint geometry in given projection
     Parameters
@@ -98,7 +98,7 @@ def create_multipoint_geom(u, v, osr_spref):
     return point_geom
 
 
-def create_point_geom(u, v, osr_spref):
+def create_point_geometry(u, v, osr_spref):
     """
     wrapper; creates single point geometry in given projection
 
@@ -230,6 +230,100 @@ def write_geometry(geom, fname, format="shapefile", segment=None):
     dst_ds, feature, geom = None, None, None
     return
 
+#todo bring in new function
+def extent2polygon(extent, osr_spref, segment=None):
+    """create a polygon geometry from extent.
+
+    extent : list
+        list of coordinates representing either
+            a) the rectangle-region-of-interest in the format of
+                [xmin, ymin, xmax, ymax]
+            b) the list of points-of-interest in the format of
+                [(x1, y1), (x2, y2), ...]
+    osr_spref : OGRSpatialReference
+        spatial reference of the coordinates in extent
+    segment : float
+        for precision: distance of longest segment of the geometry polygon
+        in units of input osr_spref
+
+    Returns
+    -------
+    geom_area : OGRGeometry
+        a geometry representing the input extent as
+        a) polygon-geometry when defined by a rectangle extent
+        b) point-geometry when defined by extent through tuples of coordinates
+    """
+
+    if isinstance(extent[0], tuple):
+        geom_area = _points2geometry(extent, osr_spref)
+    else:
+        area = [(extent[0], extent[1]),
+                ((extent[0] + extent[2]) / 2., extent[1]),
+                (extent[2], extent[1]),
+                (extent[2], (extent[1] + extent[3]) / 2.),
+                (extent[2], extent[3]),
+                ((extent[0] + extent[2]) / 2., extent[3]),
+                (extent[0], extent[3]),
+                (extent[0], (extent[1] + extent[3]) / 2.)]
+
+        edge = ogr.Geometry(ogr.wkbLinearRing)
+        [edge.AddPoint(np.double(x), np.double(y)) for x, y in area]
+        edge.CloseRings()
+
+        # modify the geometry such it has no segment longer then the given distance
+        if segment is not None:
+            edge = segmentize_geometry(edge, segment=segment)
+
+        geom_area = ogr.Geometry(ogr.wkbPolygon)
+        geom_area.AddGeometry(edge)
+
+        geom_area.AssignSpatialReference(osr_spref)
+
+    return geom_area
+
+
+def create_polygon_geometry(points, osr_spref, segment=None):
+    """
+    returns polygon geometry defined by list of points
+
+    Parameters
+    ----------
+    points : list
+        points defining the polygon, either...
+        2D: [(x1, y1), (x2, y2), ...]
+        3D: [(x1, y1, z1), (x2, y2, z2), ...]
+    osr_spref : OGRSpatialReference
+        spatial reference to what the geometry should be transformed to
+    segment : float, optional
+        for precision: distance in units of input osr_spref of longest
+        segment of the geometry polygon
+
+    Returns
+    -------
+    OGRGeometry
+        a geometry projected in the target spatial reference
+
+    """
+    # create ring from all points
+    ring = ogr.Geometry(ogr.wkbLinearRing)
+    for p in points:
+        if len(p) == 2:
+            p += (0,)
+        ring.AddPoint(*p)
+
+    # create the geometry
+    polygon_geometry = ogr.Geometry(ogr.wkbPolygon)
+    polygon_geometry.AddGeometry(ring)
+
+    # assign spatial reference
+    polygon_geometry.AssignSpatialReference(osr_spref)
+
+    # modify the geometry such it has no segment longer then the given distance
+    if segment is not None:
+        geometry_out = segmentize_geometry(polygon_geometry, segment=segment)
+
+    return polygon_geometry
+
 
 def transform_geometry(geometry, osr_spref, segment=None):
     """
@@ -241,7 +335,7 @@ def transform_geometry(geometry, osr_spref, segment=None):
         geometry object
     osr_spref : OGRSpatialReference
         spatial reference to what the geometry should be transformed to
-    segment : float
+    segment : float, optional
         for precision: distance in units of input osr_spref of longest
         segment of the geometry polygon
 
@@ -263,6 +357,11 @@ def transform_geometry(geometry, osr_spref, segment=None):
     # transform geometry to new spatial reference system.
     geometry_out.TransformTo(osr_spref)
 
+    # split polygons at antimeridian
+    if osr_spref.ExportToProj4().startswith('+proj=longlat'):
+        if geometry_out.GetGeometryName() in ['POLYGON', 'MULTIPOLYGON']:
+            geometry_out = split_polygon_by_antimeridian(geometry_out)
+
     geometry = None
     return geometry_out
 
@@ -275,7 +374,7 @@ def segmentize_geometry(geometry, segment=0.5):
     ----------
     geometry : OGRGeometry
         geometry object
-    segment : float
+    segment : float, optional
         for precision: distance in units of input osr_spref of longest
         segment of the geometry polygon
 
@@ -396,7 +495,21 @@ def split_polygon_by_antimeridian(lonlat_polygon):
 
     """
 
-    # define the antimeridain
+    # prepare the input polygon
+    in_points = lonlat_polygon.GetGeometryRef(0).GetPoints()
+    lons = [p[0] for p in in_points]
+
+    # case of very long polygon in east-west direction,
+    # crossing the Greenwich meridian, but not the antimeridian,
+    # which is most probably a wrong interpretion.
+    # --> wrapping longitudes to the eastern Hemisphere (adding 360°)
+    if (len(np.unique(np.sign(lons))) == 2) and (np.mean(np.abs(lons)) > 150):
+        new_points = [(y[0] + 360, y[1], y[2]) if y[0] < 0 else y for y in in_points]
+        lonlat_polygon = create_polygon_geometry(new_points,
+                                lonlat_polygon.GetSpatialReference(),
+                                segment=0.5)
+
+    # define the antimeridian
     antimeridian = LineString([(180, -90), (180, 90)])
 
     # use shapely for the splitting
@@ -416,10 +529,23 @@ def split_polygon_by_antimeridian(lonlat_polygon):
 
         point_coords = p.exterior.coords[:]
         lons = [p[0] for p in point_coords]
-        if np.mean(lons) > 180:
-            wrapped_points = [(y[0] - 360, y[1], y[2]) if y[0] >= 180.0 else y for y in point_coords]
-        else:
+
+        # all greater than 180° longitude (Western Hemisphere)
+        if (len(np.unique(np.sign(lons))) == 1) and (np.greater_equal(lons, 180).all()):
+            wrapped_points = [(y[0] - 360, y[1], y[2]) for y in point_coords]
+
+        # all less than 180° longitude (Eastern Hemisphere)
+        elif (len(np.unique(np.sign(lons))) == 1) and (np.less_equal(lons, 180).all()):
             wrapped_points = point_coords
+
+        # crossing the Greenwhich-meridian
+        elif (len(np.unique(np.sign(lons))) == 2) and (np.mean(np.abs(lons)) < 150):
+            wrapped_points = point_coords
+
+        # crossing the Greenwhich-meridian, but should cross the antimeridian
+        # (should not be happen actually)
+        else:
+            continue
 
         new_poly = Polygon(wrapped_points)
         wrapped_polygons.AddGeometry(ogr.CreateGeometryFromWkt(new_poly.wkt))
@@ -444,64 +570,33 @@ def get_geometry_envelope(geometry, rounding=1.0):
         as (xmin, ymin, xmax, ymax)
 
     """
-    li = geometry.GetEnvelope()
-    li = [int(x / rounding) * rounding for x in li]
+
+    # get the envelope for each sub-geometry
+    n_geometries = geometry.GetGeometryCount()
+    li = np.zeros((n_geometries, 4))
+    for g in range(n_geometries):
+        env = geometry.GetGeometryRef(g).GetEnvelope()
+        li[g] = [int(x / rounding) * rounding for x in env]
 
     # shuffle order to [xmin, ymin, xmax, ymax]
-    return tuple((li[0], li[2], li[1], li[3]))
+    # BBM: please change if you know a better way!
+    envelope = np.zeros_like(li)
+    envelope[:,0] = li[:,0]
+    envelope[:,1] = li[:,2]
+    envelope[:,2] = li[:,1]
+    envelope[:,3] = li[:,3]
 
+    # exclude antimeridian from potential limits (experimential)
+    if geometry.GetSpatialReference().ExportToProj4().startswith('+proj=longlat'):
+        envelope[envelope == -180.0] = np.nan
+        envelope[envelope == 180.0] = np.nan
 
-def extent2polygon(extent, osr_spref, segment=None):
-    """create a polygon geometry from extent.
+    # get the extreme values as tuple
+    out = tuple((*np.nanmin(envelope, axis=0)[0:2], *np.nanmax(envelope, axis=0)[2:4]))
 
-    extent : list
-        list of coordinates representing either
-            a) the rectangle-region-of-interest in the format of
-                [xmin, ymin, xmax, ymax]
-            b) the list of points-of-interest in the format of
-                [(x1, y1), (x2, y2), ...]
-    osr_spref : OGRSpatialReference
-        spatial reference of the coordinates in extent
-    segment : float
-        for precision: distance of longest segment of the geometry polygon
-        in units of input osr_spref
+    return out
 
-    Returns
-    -------
-    geom_area : OGRGeometry
-        a geometry representing the input extent as
-        a) polygon-geometry when defined by a rectangle extent
-        b) point-geometry when defined by extent through tuples of coordinates
-    """
-
-    if isinstance(extent[0], tuple):
-        geom_area = _points2geometry(extent, osr_spref)
-    else:
-        area = [(extent[0], extent[1]),
-                ((extent[0] + extent[2]) / 2., extent[1]),
-                (extent[2], extent[1]),
-                (extent[2], (extent[1] + extent[3]) / 2.),
-                (extent[2], extent[3]),
-                ((extent[0] + extent[2]) / 2., extent[3]),
-                (extent[0], extent[3]),
-                (extent[0], (extent[1] + extent[3]) / 2.)]
-
-        edge = ogr.Geometry(ogr.wkbLinearRing)
-        [edge.AddPoint(np.double(x), np.double(y)) for x, y in area]
-        edge.CloseRings()
-
-        # modify the geometry such it has no segment longer then the given distance
-        if segment is not None:
-            edge = segmentize_geometry(edge, segment=segment)
-
-        geom_area = ogr.Geometry(ogr.wkbPolygon)
-        geom_area.AddGeometry(edge)
-
-        geom_area.AssignSpatialReference(osr_spref)
-
-    return geom_area
-
-
+#todo make for loop
 def round_vertices_of_polygon(geometry, decimals=0):
     """
     'Cleans' the vertices of a polygon, so that it has rounded coordinates.
@@ -559,7 +654,7 @@ def _points2geometry(coords, osr_spref):
             u.append(co[0])
             v.append(co[1])
 
-    return create_multipoint_geom(u, v, osr_spref)
+    return create_multipoint_geometry(u, v, osr_spref)
 
 
 def setup_test_geom_spitzbergen():
@@ -572,16 +667,6 @@ def setup_test_geom_spitzbergen():
         4-corner polygon over high latitudes (is much curved on the globe)
     """
 
-    ring_global = ogr.Geometry(ogr.wkbLinearRing)
-    ring_global.AddPoint(8.391827331539572,77.35762113396143)
-    ring_global.AddPoint(16.87007957357446,81.59290885863483)
-    ring_global.AddPoint(40.5011949830408,79.73786853853339)
-    ring_global.AddPoint(25.43098663332705,75.61353436967198)
-    ring_global.AddPoint(8.391827331539572,77.35762113396143)
-
-    poly_spitzbergen = ogr.Geometry(ogr.wkbPolygon)
-    poly_spitzbergen.AddGeometry(ring_global)
-
     geom_global_wkt = '''GEOGCS[\"WGS 84\",
                            DATUM[\"WGS_1984\",
                                  SPHEROID[\"WGS 84\", 6378137, 298.257223563,
@@ -590,9 +675,16 @@ def setup_test_geom_spitzbergen():
                            PRIMEM[\"Greenwich\", 0],
                            UNIT[\"degree\", 0.0174532925199433],
                            AUTHORITY[\"EPSG\", \"4326\"]]'''
-    geom_global_sr = osr.SpatialReference()
-    geom_global_sr.ImportFromWkt(geom_global_wkt)
-    poly_spitzbergen.AssignSpatialReference(geom_global_sr)
+    osr_spref = osr.SpatialReference()
+    osr_spref.ImportFromWkt(geom_global_wkt)
+
+    points = [(8.391827331539572,77.35762113396143),
+              (16.87007957357446,81.59290885863483),
+              (40.50119498304080,79.73786853853339),
+              (25.43098663332705,75.61353436967198),
+              (8.391827331539572,77.35762113396143)]
+
+    poly_spitzbergen = create_polygon_geometry(points, osr_spref, segment=None)
 
     return poly_spitzbergen
 
@@ -605,18 +697,8 @@ def setup_geom_kamchatka():
     -------
     poly_kamchatka : OGRGeometry
         4-corner polygon close to the dateline at Kamchatka peninsula.
+
     """
-
-    ring_global = ogr.Geometry(ogr.wkbLinearRing)
-    ring_global.AddPoint(165.6045170932673, 59.05482187690058)
-    ring_global.AddPoint(167.0124744118732, 55.02758744559601)
-    ring_global.AddPoint(175.9512099050924, 54.36588084375806)
-    ring_global.AddPoint(179.4591330039386, 56.57634572271662)
-    ring_global.AddPoint(165.6045170932673, 59.05482187690058)
-
-    poly_kamchatka = ogr.Geometry(ogr.wkbPolygon)
-    poly_kamchatka.AddGeometry(ring_global)
-
     geom_global_wkt = '''GEOGCS[\"WGS 84\",
                            DATUM[\"WGS_1984\",
                                  SPHEROID[\"WGS 84\", 6378137, 298.257223563,
@@ -625,9 +707,16 @@ def setup_geom_kamchatka():
                            PRIMEM[\"Greenwich\", 0],
                            UNIT[\"degree\", 0.0174532925199433],
                            AUTHORITY[\"EPSG\", \"4326\"]]'''
-    geom_global_sr = osr.SpatialReference()
-    geom_global_sr.ImportFromWkt(geom_global_wkt)
-    poly_kamchatka.AssignSpatialReference(geom_global_sr)
+    osr_spref = osr.SpatialReference()
+    osr_spref.ImportFromWkt(geom_global_wkt)
+
+    points = [(165.6045170932673, 59.05482187690058),
+              (167.0124744118732, 55.02758744559601),
+              (175.9512099050924, 54.36588084375806),
+              (179.4591330039386, 56.57634572271662),
+              (165.6045170932673, 59.05482187690058)]
+
+    poly_kamchatka = create_polygon_geometry(points, osr_spref, segment=None)
 
     return poly_kamchatka
 
@@ -640,18 +729,8 @@ def setup_test_geom_siberia_antimeridian_180plus():
     -------
     poly_siberia_antim_180plus : OGRGeometry
         4-corner polygon in Siberia, crossing the antimeridian
+
     """
-
-    ring_global = ogr.Geometry(ogr.wkbLinearRing)
-    ring_global.AddPoint(177.6584965942706,67.04864900747906)
-    ring_global.AddPoint(179.0142461506587,65.34233852520839)
-    ring_global.AddPoint(184.1800038679373,65.74423313395079)
-    ring_global.AddPoint(183.1741580487398,67.46683765736415)
-    ring_global.AddPoint(177.6584965942706,67.04864900747906)
-
-    poly_siberia_antim_180plus = ogr.Geometry(ogr.wkbPolygon)
-    poly_siberia_antim_180plus.AddGeometry(ring_global)
-
     geom_global_wkt = '''GEOGCS[\"WGS 84\",
                            DATUM[\"WGS_1984\",
                                  SPHEROID[\"WGS 84\", 6378137, 298.257223563,
@@ -660,9 +739,16 @@ def setup_test_geom_siberia_antimeridian_180plus():
                            PRIMEM[\"Greenwich\", 0],
                            UNIT[\"degree\", 0.0174532925199433],
                            AUTHORITY[\"EPSG\", \"4326\"]]'''
-    geom_global_sr = osr.SpatialReference()
-    geom_global_sr.ImportFromWkt(geom_global_wkt)
-    poly_siberia_antim_180plus.AssignSpatialReference(geom_global_sr)
+    osr_spref = osr.SpatialReference()
+    osr_spref.ImportFromWkt(geom_global_wkt)
+
+    points = [(177.6584965942706,67.04864900747906),
+              (179.0142461506587,65.34233852520839),
+              (184.1800038679373,65.74423313395079),
+              (183.1741580487398,67.46683765736415),
+              (177.6584965942706,67.04864900747906)]
+
+    poly_siberia_antim_180plus = create_polygon_geometry(points, osr_spref, segment=None)
 
     return poly_siberia_antim_180plus
 
@@ -676,18 +762,8 @@ def setup_test_geom_siberia_alaska():
         poly_siberia_alaska : OGRGeometry
         4-corner polygon over Siberia and Alaska, crossing antimeridian
         and covering two Equi7Grid subgrids.
+
     """
-
-    ring_global = ogr.Geometry(ogr.wkbLinearRing)
-    ring_global.AddPoint(177.6545884597184,67.05574774066811)
-    ring_global.AddPoint(179.0195867605756,65.33232820668778)
-    ring_global.AddPoint(198.4723636216472,66.06909015550372)
-    ring_global.AddPoint(198.7828129097253,68.14247939909886)
-    ring_global.AddPoint(177.6545884597184,67.05574774066811)
-
-    poly_siberia_alaska = ogr.Geometry(ogr.wkbPolygon)
-    poly_siberia_alaska.AddGeometry(ring_global)
-
     geom_global_wkt = '''GEOGCS[\"WGS 84\",
                            DATUM[\"WGS_1984\",
                                  SPHEROID[\"WGS 84\", 6378137, 298.257223563,
@@ -696,8 +772,15 @@ def setup_test_geom_siberia_alaska():
                            PRIMEM[\"Greenwich\", 0],
                            UNIT[\"degree\", 0.0174532925199433],
                            AUTHORITY[\"EPSG\", \"4326\"]]'''
-    geom_global_sr = osr.SpatialReference()
-    geom_global_sr.ImportFromWkt(geom_global_wkt)
-    poly_siberia_alaska.AssignSpatialReference(geom_global_sr)
+    osr_spref = osr.SpatialReference()
+    osr_spref.ImportFromWkt(geom_global_wkt)
+
+    points = [(177.6545884597184,67.05574774066811),
+              (179.0195867605756,65.33232820668778),
+              (198.4723636216472,66.06909015550372),
+              (198.7828129097253,68.14247939909886),
+              (177.6545884597184,67.05574774066811)]
+
+    poly_siberia_alaska = create_polygon_geometry(points, osr_spref, segment=None)
 
     return poly_siberia_alaska

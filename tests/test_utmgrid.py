@@ -254,7 +254,8 @@ class TestBaseViaUTMGrid(unittest.TestCase):
         utm = UTMGrid(500)
 
         tiles = utm.search_tiles_in_roi(extent=[-10, 80, 5, 85],
-                                       coverland=True)
+                                        coverland=True)
+
         desired_tiles = ['Z31N500M_E000N084T6', 'Z31N500M_E000N090T6',
                          'Z00Z500M_E018N012T6', 'Z00Y500M_E018N012T6',
                          'Z29N500M_E000N084T6', 'Z29N500M_E000N090T6',
@@ -262,7 +263,8 @@ class TestBaseViaUTMGrid(unittest.TestCase):
         assert sorted(tiles) == sorted(desired_tiles)
 
         tiles_all = utm.search_tiles_in_roi(extent=[-179.9, -89.9, 179.9, 89.9],
-                                           coverland=True)
+                                            coverland=True)
+
         assert len(tiles_all) == 3638
 
 
@@ -366,8 +368,8 @@ class TestBaseViaUTMGrid(unittest.TestCase):
     def test_get_covering_tiles(self):
         """
         Tests the search for co-locating tiles of other type.
-        """
 
+        """
         utm_500 = UTMGrid(500)
         utm_10 = UTMGrid(10)
 

@@ -299,8 +299,8 @@ class TiledProjectionSystem(object):
 
         # create point geometry
         lonlatprojection = TPSProjection(epsg=4326)
-        point_geom = ptpgeometry.create_point_geom(lon, lat,
-                                                lonlatprojection.osr_spref)
+        point_geom = ptpgeometry.create_point_geometry(lon, lat,
+                                                       lonlatprojection.osr_spref)
 
         # search for co-locating subgrid
         subgrid = self.locate_geometry_in_subgrids(point_geom)[0]
@@ -542,10 +542,13 @@ class TiledProjection(object):
         self.polygon_geog = ptpgeometry.segmentize_geometry(polygon_geog, segment=0.5)
         self.polygon_proj = ptpgeometry.transform_geometry(
             self.polygon_geog, self.core.projection.osr_spref)
-        self.bbox_geog = ptpgeometry.get_geometry_envelope(
-            self.polygon_geog, rounding=self.core.sampling / 1000000.0)
         self.bbox_proj = ptpgeometry.get_geometry_envelope(
             self.polygon_proj, rounding=self.core.sampling)
+
+        # does this use anybody? its justs makes problems with the antimeridian!
+        # self.bbox_geog = ptpgeometry.get_geometry_envelope(
+        #     self.polygon_geog, rounding=self.core.sampling / 1000000.0)
+
 
         if tilingsystem is None:
             tilingsystem = GlobalTile(self.core, 'TG', self.get_bbox_proj())
@@ -920,7 +923,7 @@ class TilingSystem(object):
             tilenames overlapping the bounding box
         """
 
-        xmin, ymin, xmax, ymax = [round(x) for x in bbox]
+        xmin, ymin, xmax, ymax = [int(round(x)) for x in bbox]
         if (xmin > xmax) or (ymin > ymax):
             raise ValueError("Check order of coordinates of bbox! "
                              "Scheme: [xmin, ymin, xmax, ymax]")
