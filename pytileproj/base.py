@@ -487,8 +487,7 @@ class TiledProjectionSystem(object):
             else:
                 raise Warning('Please check unit of geometry '
                               'before reprojection!')
-            geom_area = ptpgeometry.transform_geometry(geom_area, geo_sr,
-                                                    segment=max_segment)
+            geom_area = ptpgeometry.transform_geometry(geom_area, geo_sr, segment=max_segment)
 
         # intersect the given grid ids and the overlapped ids
         overlapped_grids = self.locate_geometry_in_subgrids(geom_area)
@@ -497,9 +496,8 @@ class TiledProjectionSystem(object):
         # finding tiles
         overlapped_tiles = list()
         for sgrid_id in subgrid_ids:
-            overlapped_tiles.extend(
-                self.subgrids[sgrid_id].search_tiles_over_geometry(geom_area,
-                                                                   coverland=coverland))
+            overlapped_tiles.extend(self.subgrids[sgrid_id].search_tiles_over_geometry(
+                                                            geom_area, coverland=coverland))
         return overlapped_tiles
 
 
@@ -672,7 +670,7 @@ class TiledProjection(object):
                                                        self.projection.osr_spref,
                                                        segment=max_segment)
 
-        # get envelope of the Geometry and cal the bounding tile of the
+        # get envelope of the geometry
         envelope = ptpgeometry.get_geometry_envelope(intersect_geometry)
 
         # get overlapped tiles
@@ -684,7 +682,7 @@ class TiledProjection(object):
             t = self.tilesys.create_tile(tile)
 
             # get only tile that overlaps with intersect_geometry
-            if t.get_extent_geometry_proj().Intersects(intersect_geometry):
+            if t.polygon_proj.Intersects(intersect_geometry):
 
                 # get only tile if coverland is satisfied
                 if not coverland or self.tilesys.check_tile_covers_land(t.name):
@@ -1156,7 +1154,9 @@ class Tile(object):
         OGRGeometry
 
         """
-        return ptpgeometry.extent2polygon(self._limits_m(), self.core.projection.osr_spref)
+        return ptpgeometry.extent2polygon(self._limits_m(),
+                                          self.core.projection.osr_spref,
+                                          segment=self.x_size_px * self.core.sampling / 4)
 
 
     def get_extent_geometry_geog(self):

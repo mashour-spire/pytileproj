@@ -278,9 +278,9 @@ class TestBaseViaUTMGrid(unittest.TestCase):
 
         utm = UTMGrid(500)
 
-        tiles = utm.search_tiles_in_roi(
-            extent=[(10, 40), (5, 50), (-90.9, -1.2), (-175.2, 66)],
-            coverland=True)
+        tiles = utm.search_tiles_in_roi(extent=[(10, 40), (5, 50), (-90.9, -1.2), (-175.2, 66)],
+                                        coverland=True)
+
         desired_tiles = ['Z31N500M_E006N054T6', 'Z01N500M_E000N072T6',
                          'Z32N500M_E000N042T6', 'Z15S500M_E006N096T6']
         assert sorted(tiles) == sorted(desired_tiles)
