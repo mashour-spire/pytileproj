@@ -253,7 +253,7 @@ class TestBaseViaUTMGrid(unittest.TestCase):
 
         utm = UTMGrid(500)
 
-        tiles = utm.search_tiles_in_roi(extent=[-10, 80, 5, 85],
+        tiles = utm.search_tiles_in_roi(bbox=[(-10, 80), (5, 85)],
                                         coverland=True)
 
         desired_tiles = ['Z31N500M_E000N084T6', 'Z31N500M_E000N090T6',
@@ -262,7 +262,7 @@ class TestBaseViaUTMGrid(unittest.TestCase):
                          'Z30N500M_E000N084T6', 'Z30N500M_E000N090T6']
         assert sorted(tiles) == sorted(desired_tiles)
 
-        tiles_all = utm.search_tiles_in_roi(extent=[-179.9, -89.9, 179.9, 89.9],
+        tiles_all = utm.search_tiles_in_roi(bbox=[(-179.9, -89.9), (179.9, 89.9)],
                                             coverland=True)
 
         assert len(tiles_all) == 3638
@@ -278,7 +278,7 @@ class TestBaseViaUTMGrid(unittest.TestCase):
 
         utm = UTMGrid(500)
 
-        tiles = utm.search_tiles_in_roi(extent=[(10, 40), (5, 50), (-90.9, -1.2), (-175.2, 66)],
+        tiles = utm.search_tiles_in_roi(points=[(10, 40), (5, 50), (-90.9, -1.2), (-175.2, 66)],
                                         coverland=True)
 
         desired_tiles = ['Z31N500M_E006N054T6', 'Z01N500M_E000N072T6',

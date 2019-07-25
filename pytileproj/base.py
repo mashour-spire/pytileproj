@@ -411,8 +411,9 @@ class TiledProjectionSystem(object):
 
 
     def search_tiles_in_roi(self,
-                            geom_area=None,
-                            extent=None,
+                            roi_geometry=None,
+                            bbox=None,
+                            points=None,
                             osr_spref=None,
                             subgrid_ids=None,
                             coverland=False):
@@ -421,14 +422,15 @@ class TiledProjectionSystem(object):
 
         Parameters
         ----------
-        geom_area : geometry
-            a polygon or multipolygon geometery object representing the ROI
-        extent : list
-            It is a list of coordinates representing either
-                a) the rectangle-region-of-interest in the format of
-                    [xmin, ymin, xmax, ymax]
-                b) the tuple-list of points-of-intererst in the format of
-                    [(x1, y1), (x2, y2), ...]
+        roi_geometry : geometry
+            a polygon or multipolygon geometry object representing the ROI
+        bbox : list
+            a list of coordinate-tuples representing a rectangle-shape
+            region-of-interest in the format of
+                [(left, lower), (right, upper)]
+        points : list
+            a list of points-of-interest as tuples in the format of
+                [(x1, y1), (x2, y2), ...]
         osr_spref : OGRSpatialReference
             spatial reference of input coordinates in extent
         sgrid_ids : string or list of strings
@@ -456,48 +458,58 @@ class TiledProjectionSystem(object):
             raise ValueError("Invalid argument: grid must one of [ %s ]." %
                              " ".join(self.subgrids.keys()))
 
-        if not geom_area and not extent:
-            print("Error: Either geom or extent should be given as the ROI!")
+        if roi_geometry is None and bbox is None and points is None:
+            print("Error: Either roi_geometry, bbox, or points must be given "
+                  "as the region-of-interest!")
             return list()
 
-        # obtain the geometry of ROI
-        if not geom_area:
+        # obtain the ROI from ROI
+        if roi_geometry is not None:
+
+            # catch case where a MULTIPOLYGON shoulde be a POLYGON
+            if roi_geometry.GetGeometryName() == 'MULTIPOLYGON':
+                if roi_geometry.GetGeometryCount() == 1:
+                    roi_geometry = roi_geometry.GetGeometryRef(0)
+                else:
+                    return None
+
+        # obtain the ROI from ROI if not given by geometry
+        else:
             if osr_spref is None:
                 projection = TPSProjection(epsg=4326)
                 osr_spref = projection.osr_spref
-            if not isinstance(extent[0], tuple):
-                if extent[0] > extent[2] or extent[1] > extent[3]:
-                    print("Error: Check order of the extent values!")
-                    return list()
 
-            geom_area = ptpgeometry.extent2polygon(extent, osr_spref, segment=0.5)
+            if points is not None:
+                roi_geometry = ptpgeometry.points2geometry(points, osr_spref)
+
+            elif bbox is not None:
+                roi_geometry = ptpgeometry.bbox2polygon(bbox, osr_spref, segment=0.5)
 
         # load lat-lon spatial reference as the default
         geo_sr = TPSProjection(epsg=4326).osr_spref
 
-        geom_sr = geom_area.GetSpatialReference()
+        geom_sr = roi_geometry.GetSpatialReference()
         if geom_sr is None:
-            geom_area.AssignSpatialReference(geo_sr)
+            roi_geometry.AssignSpatialReference(geo_sr)
         elif not geom_sr.IsSame(geo_sr):
-            projected = geom_area.GetSpatialReference().IsProjected()
+            projected = roi_geometry.GetSpatialReference().IsProjected()
             if projected == 0:
                 max_segment = 0.5
             elif projected == 1:
                 max_segment = 50000
             else:
-                raise Warning('Please check unit of geometry '
-                              'before reprojection!')
-            geom_area = ptpgeometry.transform_geometry(geom_area, geo_sr, segment=max_segment)
+                raise Warning('Please check unit of geometry before reprojection!')
+            roi_geometry = ptpgeometry.transform_geometry(roi_geometry, geo_sr, segment=max_segment)
 
         # intersect the given grid ids and the overlapped ids
-        overlapped_grids = self.locate_geometry_in_subgrids(geom_area)
+        overlapped_grids = self.locate_geometry_in_subgrids(roi_geometry)
         subgrid_ids = list(set(subgrid_ids) & set(overlapped_grids))
 
         # finding tiles
         overlapped_tiles = list()
         for sgrid_id in subgrid_ids:
             overlapped_tiles.extend(self.subgrids[sgrid_id].search_tiles_over_geometry(
-                                                            geom_area, coverland=coverland))
+                                                            roi_geometry, coverland=coverland))
         return overlapped_tiles
 
 
@@ -1154,9 +1166,9 @@ class Tile(object):
         OGRGeometry
 
         """
-        return ptpgeometry.extent2polygon(self._limits_m(),
-                                          self.core.projection.osr_spref,
-                                          segment=self.x_size_px * self.core.sampling / 4)
+        return ptpgeometry.bbox2polygon((self._limits_m()[0:2], self._limits_m()[2:4]),
+                                        self.core.projection.osr_spref,
+                                        segment=self.x_size_px * self.core.sampling / 4)
 
 
     def get_extent_geometry_geog(self):

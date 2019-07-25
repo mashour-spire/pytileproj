@@ -32,6 +32,7 @@
 Code for osgeo geometry operations.
 """
 
+from copy import deepcopy
 import numpy as np
 
 from osgeo import ogr
@@ -231,17 +232,16 @@ def write_geometry(geom, fname, format="shapefile", segment=None):
     return
 
 
-def extent2polygon(extent, osr_spref, segment=None):
-    """create a polygon geometry from extent.
+def bbox2polygon(bbox, osr_spref, segment=None):
+    """
+    create a polygon geometry from bounding-box bbox, given by
+    a set of two points, spanning a polygon area
 
-    extent : list
-        list of coordinates representing either
-            a) the rectangle-region-of-interest in the format of
-                [xmin, ymin, xmax, ymax]
-            b) the list of points-of-interest in the format of
-                [(x1, y1), (x2, y2), ...]
+    bbox : list
+        list of coordinates representing the rectangle-region-of-interest
+        in the format of [(left, lower), (right, upper)]
     osr_spref : OGRSpatialReference
-        spatial reference of the coordinates in extent
+        spatial reference of the coordinates in bbox
     segment : float
         for precision: distance of longest segment of the geometry polygon
         in units of input osr_spref
@@ -249,22 +249,23 @@ def extent2polygon(extent, osr_spref, segment=None):
     Returns
     -------
     geom_area : OGRGeometry
-        a geometry representing the input extent as
-        a) polygon-geometry when defined by a rectangle extent
-        b) point-geometry when defined by extent through tuples of coordinates
+        a geometry representing the input bbox as
+        a) polygon-geometry when defined by a rectangle bbox
+        b) point-geometry when defined by bbox through tuples of coordinates
     """
 
-    if isinstance(extent[0], tuple):
-        geom_area = _points2geometry(extent, osr_spref)
-    else:
-        points = [(extent[0], extent[1]),
-                  (extent[0], extent[3]),
-                  (extent[2], extent[3]),
-                  (extent[2], extent[1])]
+    bbox2 = deepcopy(bbox)
 
-        geom_area = create_polygon_geometry(points, osr_spref, segment=segment)
+    # wrap around dateline (considering left-lower and right-upper logic).
+    if bbox2[0][0] > bbox2[1][0]:
+        bbox2[1] = (bbox2[1][0] + 360, bbox2[1][1])
 
-    return geom_area
+    corners = [(float(bbox2[0][0]), float(bbox2[0][1])),
+               (float(bbox2[0][0]), float(bbox2[1][1])),
+               (float(bbox2[1][0]), float(bbox2[1][1])),
+               (float(bbox2[1][0]), float(bbox2[0][1]))]
+
+    return create_polygon_geometry(corners, osr_spref, segment=segment)
 
 
 def create_polygon_geometry(points, osr_spref, segment=None):
@@ -463,7 +464,7 @@ def get_lonlat_intersection(geometry1, geometry2):
     return polygons.Intersection(geometry2c)
 
 
-def split_polygon_by_antimeridian(lonlat_polygon):
+def split_polygon_by_antimeridian(lonlat_polygon, split_limit=150.0):
     """
     Function that splits a polygon at the antimeridian
     (i.e. the 180 degree dateline)
@@ -471,11 +472,13 @@ def split_polygon_by_antimeridian(lonlat_polygon):
     Parameters
     ----------
     lonlat_polygon : OGRGeometry
-        geometry object in lonlat space
-        to be split by the antimeridian
+        geometry object in lonlat space to be split by the antimeridian
+    split_limit : float, optional
+        longitude that determines what is split and what not. default is 150.0
+        e.g. a polygon with a centre east of 150E or west of 150W will be split!
     Returns
     -------
-    wrapped_polygons : OGRGeometry
+    splitted_polygons : OGRGeometry
         MULTIPOLYGON comprising east and west parts of lonlat_polygon
         contains only one POLYGON if no intersect with antimeridian is given
 
@@ -489,7 +492,7 @@ def split_polygon_by_antimeridian(lonlat_polygon):
     # crossing the Greenwich meridian, but not the antimeridian,
     # which is most probably a wrong interpretion.
     # --> wrapping longitudes to the eastern Hemisphere (adding 360°)
-    if (len(np.unique(np.sign(lons))) == 2) and (np.mean(np.abs(lons)) > 150):
+    if (len(np.unique(np.sign(lons))) == 2) and (np.mean(np.abs(lons)) > split_limit):
         new_points = [(y[0] + 360, y[1], y[2]) if y[0] < 0 else y for y in in_points]
         lonlat_polygon = create_polygon_geometry(new_points,
                                 lonlat_polygon.GetSpatialReference(),
@@ -504,10 +507,10 @@ def split_polygon_by_antimeridian(lonlat_polygon):
     polygons = polygonize(borders)
 
     # setup OGR multipolygon
-    wrapped_polygons = ogr.Geometry(ogr.wkbMultiPolygon)
+    splitted_polygons = ogr.Geometry(ogr.wkbMultiPolygon)
     geo_sr = osr.SpatialReference()
     geo_sr.SetWellKnownGeogCS("EPSG:4326")
-    wrapped_polygons.AssignSpatialReference(geo_sr)
+    splitted_polygons.AssignSpatialReference(geo_sr)
 
     # wrap the longitude coordinates
     # to get only longitudes out out [0, 180] or [-180, 0]
@@ -525,7 +528,7 @@ def split_polygon_by_antimeridian(lonlat_polygon):
             wrapped_points = point_coords
 
         # crossing the Greenwhich-meridian
-        elif (len(np.unique(np.sign(lons))) >= 2) and (np.mean(np.abs(lons)) < 150):
+        elif (len(np.unique(np.sign(lons))) >= 2) and (np.mean(np.abs(lons)) < split_limit):
             wrapped_points = point_coords
 
         # crossing the Greenwhich-meridian, but should cross the antimeridian
@@ -534,9 +537,9 @@ def split_polygon_by_antimeridian(lonlat_polygon):
             continue
 
         new_poly = Polygon(wrapped_points)
-        wrapped_polygons.AddGeometry(ogr.CreateGeometryFromWkt(new_poly.wkt))
+        splitted_polygons.AddGeometry(ogr.CreateGeometryFromWkt(new_poly.wkt))
 
-    return wrapped_polygons
+    return splitted_polygons
 
 
 def get_geometry_envelope(geometry, rounding=1.0):
@@ -626,7 +629,7 @@ def round_vertices_of_polygon(geometry, decimals=0):
     return geometry_out
 
 
-def _points2geometry(coords, osr_spref):
+def points2geometry(coords, osr_spref):
     """create a point geometry from a list of coordinate-tuples
 
     coords : list of tuples
