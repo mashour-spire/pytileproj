@@ -585,7 +585,7 @@ class TiledProjection(object):
             as (lonmin, latmin, lonmax, latmax)
 
         """
-        return self.polygon_geog.GetEnvelope()
+        return ptpgeometry.get_geometry_envelope(self.polygon_geog, rounding=0.0001)
 
 
     def get_bbox_proj(self):
@@ -655,7 +655,7 @@ class TiledProjection(object):
                 # get intersect area with subgrid in latlon
                 intersect_geometry = geometry.Intersection(self.polygon_geog)
                 intersect_geometry = ptpgeometry.transform_geometry(intersect_geometry,
-                                                   self.projection.osr_spref)
+                                                                    self.projection.osr_spref)
             else:
                 return overlapped_tiles
 
@@ -679,8 +679,8 @@ class TiledProjection(object):
                 raise Warning('Please check unit of geometry before reprojection!')
 
             intersect_geometry = ptpgeometry.transform_geometry(intersect,
-                                                       self.projection.osr_spref,
-                                                       segment=max_segment)
+                                                                self.projection.osr_spref,
+                                                                segment=max_segment)
 
         # get envelope of the geometry
         envelope = ptpgeometry.get_geometry_envelope(intersect_geometry)
