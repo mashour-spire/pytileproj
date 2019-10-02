@@ -88,7 +88,7 @@ def make_utmdata(outpath, version="V10"):
         subgrid_data["zone_extent"] = zone_extent.ExportToWkt()
 
         sr_wkt = load_spatial_reference(subgrid)
-        subgrid_data["projection"] = sr_wkt
+        subgrid_data["wkt"] = sr_wkt
 
         utm_data[subgrid] = subgrid_data
     
@@ -146,6 +146,6 @@ def main():
 
 if __name__ == "__main__":
     import sys
-    sys.argv.append("C:\code\TPS\pytileproj\pytileproj\data\utm")
+    sys.argv.append(r"C:\code\TPS\pytileproj\pytileproj\data\utm")
     main()
 

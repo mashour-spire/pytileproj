@@ -427,7 +427,7 @@ class UTMSubgrid(TiledProjection):
 
         _core = copy.copy(core)
         _core.tag = continent
-        _core.projection = TPSProjection(wkt=data['projection'])
+        _core.projection = TPSProjection(wkt=data['wkt'])
 
         # holds core parameters of the (sub-) grid
         self.core = _core
@@ -443,8 +443,7 @@ class UTMSubgrid(TiledProjection):
         # defines the tilingsystem of the subgrid
         self.tilesys = UTMTilingSystem(self.core, self.polygon_geog)
 
-        super(UTMSubgrid, self).__init__(
-            self.core, self.polygon_geog, self.tilesys)
+        super(UTMSubgrid, self).__init__(self.core, self.polygon_geog, self.tilesys)
 
 
 class UTMTilingSystem(TilingSystem):

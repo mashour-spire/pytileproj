@@ -33,7 +33,6 @@ Code for Tiled Projection Systems.
 """
 
 import abc
-import itertools
 import math
 
 import numpy as np
@@ -118,7 +117,12 @@ class TPSProjection():
         spref = osr.SpatialReference()
 
         if epsg is not None:
-            spref.ImportFromEPSG(epsg)
+
+            if epsg == 4326:
+                spref = ptpgeometry.get_geog_spatial_ref()
+            else:
+                spref.ImportFromEPSG(epsg)
+
             self.osr_spref = spref
             self.proj4 = spref.ExportToProj4()
             self.wkt = spref.ExportToWkt()
@@ -299,8 +303,7 @@ class TiledProjectionSystem(object):
 
         # create point geometry
         lonlatprojection = TPSProjection(epsg=4326)
-        point_geom = ptpgeometry.create_point_geometry(lon, lat,
-                                                       lonlatprojection.osr_spref)
+        point_geom = ptpgeometry.create_point_geometry(lon, lat, lonlatprojection.osr_spref)
 
         # search for co-locating subgrid
         subgrid = self.locate_geometry_in_subgrids(point_geom)[0]
@@ -1182,8 +1185,7 @@ class Tile(object):
         """
         tile_geom = self.polygon_proj
 
-        geo_sr = osr.SpatialReference()
-        geo_sr.SetWellKnownGeogCS("EPSG:4326")
+        geo_sr = ptpgeometry.get_geog_spatial_ref()
 
         return ptpgeometry.transform_geometry(tile_geom, geo_sr, segment=25000)
 

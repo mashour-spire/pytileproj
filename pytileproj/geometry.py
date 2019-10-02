@@ -37,12 +37,47 @@ import numpy as np
 
 from osgeo import ogr
 from osgeo import osr
+from osgeo.gdal import __version__ as gdal_version
 
 from shapely.geometry import Polygon
 from shapely.geometry import LineString
 from shapely.ops import linemerge
 from shapely.ops import unary_union
 from shapely.ops import polygonize
+
+
+def get_geog_spatial_ref():
+    """
+    Small function to generate an OSR.SpatialReference() for the geographic lonlat-space.
+    This was necessary because GDAL>=3.0.0 is sensitive to
+        the axis order (or was changed the order, whatever, who really knows?) ;-)
+
+    Returns
+    -------
+    SpatialReference
+        osgeo spatial reference defining lonlat-space
+
+    """
+
+    geo_sr = osr.SpatialReference()
+    geo_sr.SetWellKnownGeogCS("EPSG:{}".format(str(4326)))
+
+    if gdal_version[0] == '3':
+        # "0" is "OAMS_TRADITIONAL_GIS_ORDER" which is lon-lat-order (like in GDAL 2.x)
+        # "1" is "OAMS_AUTHORITY_COMPLIANT " which is lat-lon-order (like in GDAL 3.x)
+        #               (following ISO:19111)
+        # please check https://gdal.org/tutorials/osr_api_tut.html
+        geo_sr.SetAxisMappingStrategy(0)
+
+    # nothing to do, as everything in pytileproj is using the lon-lat-order
+    elif gdal_version[0] == '2':
+        pass
+
+    # check for future releases
+    else:
+        return
+
+    return geo_sr
 
 
 def uv2xy(u, v, src_ref, dst_ref):
@@ -146,8 +181,13 @@ def create_geometry_from_wkt(wkt_multipolygon, epsg=4326, segment=None):
 
     """
     geom = ogr.CreateGeometryFromWkt(wkt_multipolygon)
-    geo_sr = osr.SpatialReference()
-    geo_sr.SetWellKnownGeogCS("EPSG:{}".format(str(epsg)))
+
+    if epsg == 4326:
+        geo_sr = get_geog_spatial_ref()
+    else:
+        geo_sr = osr.SpatialReference()
+        geo_sr.SetWellKnownGeogCS("EPSG:{}".format(str(epsg)))
+
     geom.AssignSpatialReference(geo_sr)
 
     # modify the geometry such it has no segment longer then the given distance
@@ -508,8 +548,7 @@ def split_polygon_by_antimeridian(lonlat_polygon, split_limit=150.0):
 
     # setup OGR multipolygon
     splitted_polygons = ogr.Geometry(ogr.wkbMultiPolygon)
-    geo_sr = osr.SpatialReference()
-    geo_sr.SetWellKnownGeogCS("EPSG:4326")
+    geo_sr = get_geog_spatial_ref()
     splitted_polygons.AssignSpatialReference(geo_sr)
 
     # wrap the longitude coordinates
@@ -663,16 +702,7 @@ def setup_test_geom_spitzbergen():
         4-corner polygon over high latitudes (is much curved on the globe)
     """
 
-    geom_global_wkt = '''GEOGCS[\"WGS 84\",
-                           DATUM[\"WGS_1984\",
-                                 SPHEROID[\"WGS 84\", 6378137, 298.257223563,
-                                          AUTHORITY[\"EPSG\", \"7030\"]],
-                                 AUTHORITY[\"EPSG\", \"6326\"]],
-                           PRIMEM[\"Greenwich\", 0],
-                           UNIT[\"degree\", 0.0174532925199433],
-                           AUTHORITY[\"EPSG\", \"4326\"]]'''
-    osr_spref = osr.SpatialReference()
-    osr_spref.ImportFromWkt(geom_global_wkt)
+    osr_spref = get_geog_spatial_ref()
 
     points = [(8.391827331539572,77.35762113396143),
               (16.87007957357446,81.59290885863483),
@@ -694,16 +724,8 @@ def setup_geom_kamchatka():
         4-corner polygon close to the dateline at Kamchatka peninsula.
 
     """
-    geom_global_wkt = '''GEOGCS[\"WGS 84\",
-                           DATUM[\"WGS_1984\",
-                                 SPHEROID[\"WGS 84\", 6378137, 298.257223563,
-                                          AUTHORITY[\"EPSG\", \"7030\"]],
-                                 AUTHORITY[\"EPSG\", \"6326\"]],
-                           PRIMEM[\"Greenwich\", 0],
-                           UNIT[\"degree\", 0.0174532925199433],
-                           AUTHORITY[\"EPSG\", \"4326\"]]'''
-    osr_spref = osr.SpatialReference()
-    osr_spref.ImportFromWkt(geom_global_wkt)
+
+    osr_spref = get_geog_spatial_ref()
 
     points = [(165.6045170932673, 59.05482187690058),
               (167.0124744118732, 55.02758744559601),
@@ -725,16 +747,8 @@ def setup_test_geom_siberia_antimeridian_180plus():
         4-corner polygon in Siberia, crossing the antimeridian
 
     """
-    geom_global_wkt = '''GEOGCS[\"WGS 84\",
-                           DATUM[\"WGS_1984\",
-                                 SPHEROID[\"WGS 84\", 6378137, 298.257223563,
-                                          AUTHORITY[\"EPSG\", \"7030\"]],
-                                 AUTHORITY[\"EPSG\", \"6326\"]],
-                           PRIMEM[\"Greenwich\", 0],
-                           UNIT[\"degree\", 0.0174532925199433],
-                           AUTHORITY[\"EPSG\", \"4326\"]]'''
-    osr_spref = osr.SpatialReference()
-    osr_spref.ImportFromWkt(geom_global_wkt)
+
+    osr_spref = get_geog_spatial_ref()
 
     points = [(177.6584965942706,67.04864900747906),
               (179.0142461506587,65.34233852520839),
@@ -757,16 +771,8 @@ def setup_test_geom_siberia_alaska():
         and covering two Equi7Grid subgrids.
 
     """
-    geom_global_wkt = '''GEOGCS[\"WGS 84\",
-                           DATUM[\"WGS_1984\",
-                                 SPHEROID[\"WGS 84\", 6378137, 298.257223563,
-                                          AUTHORITY[\"EPSG\", \"7030\"]],
-                                 AUTHORITY[\"EPSG\", \"6326\"]],
-                           PRIMEM[\"Greenwich\", 0],
-                           UNIT[\"degree\", 0.0174532925199433],
-                           AUTHORITY[\"EPSG\", \"4326\"]]'''
-    osr_spref = osr.SpatialReference()
-    osr_spref.ImportFromWkt(geom_global_wkt)
+
+    osr_spref = get_geog_spatial_ref()
 
     points = [(177.6545884597184,67.05574774066811),
               (179.0195867605756,65.33232820668778),
