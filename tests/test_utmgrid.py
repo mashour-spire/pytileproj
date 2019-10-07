@@ -27,6 +27,16 @@ from pytileproj.geometry import setup_test_geom_spitzbergen
 from pytileproj.geometry import setup_geom_kamchatka
 
 
+# ### for testing at BBM machine
+# import os
+# # gdal 2
+# os.environ["GDAL_DATA"] = r"C:\ProgramData\OSGeoW\share\gdal"
+# os.environ["GDAL_DRIVER_PAT"] = r"C:\ProgramData\OSGeoW\bin\gdalplugins"
+#
+# # gdal 3
+# os.environ["GDAL_DATA"] = r"C:\Program Files\GDAL\gdal-data"
+# os.environ["GDAL_DRIVER_PAT"] = r"C:\Program Files\GDAL\gdalplugins"
+
 class TestBaseViaUTMGrid(unittest.TestCase):
 
     def test_lonlat2xy_doubles(self):

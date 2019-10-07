@@ -473,6 +473,8 @@ class TiledProjectionSystem(object):
             if roi_geometry.GetGeometryName() == 'MULTIPOLYGON':
                 if roi_geometry.GetGeometryCount() == 1:
                     roi_geometry = roi_geometry.GetGeometryRef(0)
+                    # alternatively?:
+                    # roi_geometry = ogr.ForceToPolygon(roi_geometry)
                 else:
                     return None
 
@@ -489,12 +491,12 @@ class TiledProjectionSystem(object):
                 roi_geometry = ptpgeometry.bbox2polygon(bbox, osr_spref, segment=0.5)
 
         # load lat-lon spatial reference as the default
-        geo_sr = TPSProjection(epsg=4326).osr_spref
+        geog_sr = TPSProjection(epsg=4326).osr_spref
 
         geom_sr = roi_geometry.GetSpatialReference()
         if geom_sr is None:
-            roi_geometry.AssignSpatialReference(geo_sr)
-        elif not geom_sr.IsSame(geo_sr):
+            roi_geometry.AssignSpatialReference(geog_sr)
+        elif not geom_sr.IsSame(geog_sr):
             projected = roi_geometry.GetSpatialReference().IsProjected()
             if projected == 0:
                 max_segment = 0.5
@@ -502,7 +504,7 @@ class TiledProjectionSystem(object):
                 max_segment = 50000
             else:
                 raise Warning('Please check unit of geometry before reprojection!')
-            roi_geometry = ptpgeometry.transform_geometry(roi_geometry, geo_sr, segment=max_segment)
+            roi_geometry = ptpgeometry.transform_geometry(roi_geometry, geog_sr, segment=max_segment)
 
         # intersect the given grid ids and the overlapped ids
         overlapped_grids = self.locate_geometry_in_subgrids(roi_geometry)
@@ -662,7 +664,7 @@ class TiledProjection(object):
             else:
                 return overlapped_tiles
 
-        if geometry.GetGeometryName() == 'POLYGON':
+        if geometry.GetGeometryName() in ['POLYGON', 'MULTIPOLYGON']:
 
             # get intersect area with subgrid in latlon
             intersect = ptpgeometry.get_lonlat_intersection(geometry, self.polygon_geog)

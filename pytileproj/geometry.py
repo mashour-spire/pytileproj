@@ -499,6 +499,9 @@ def get_lonlat_intersection(geometry1, geometry2):
     geometry1 = None
     geometry2 = None
 
+    if geometry1c.GetGeometryName() == 'MULTIPOLYGON':
+        geometry1c = ogr.ForceToPolygon(geometry1c)
+
     polygons = split_polygon_by_antimeridian(geometry1c)
 
     return polygons.Intersection(geometry2c)
