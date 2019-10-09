@@ -420,6 +420,7 @@ class TiledProjectionSystem(object):
                             osr_spref=None,
                             subgrid_ids=None,
                             coverland=False):
+
         """
         Search the tiles of the grid which intersect by the given area.
 
@@ -466,20 +467,9 @@ class TiledProjectionSystem(object):
                   "as the region-of-interest!")
             return list()
 
-        # obtain the ROI from ROI
-        if roi_geometry is not None:
+        # obtain the ROI
+        if roi_geometry is None:
 
-            # catch case where a MULTIPOLYGON shoulde be a POLYGON
-            if roi_geometry.GetGeometryName() == 'MULTIPOLYGON':
-                if roi_geometry.GetGeometryCount() == 1:
-                    roi_geometry = roi_geometry.GetGeometryRef(0)
-                    # alternatively?:
-                    # roi_geometry = ogr.ForceToPolygon(roi_geometry)
-                else:
-                    return None
-
-        # obtain the ROI from ROI if not given by geometry
-        else:
             if osr_spref is None:
                 projection = TPSProjection(epsg=4326)
                 osr_spref = projection.osr_spref
@@ -489,6 +479,60 @@ class TiledProjectionSystem(object):
 
             elif bbox is not None:
                 roi_geometry = ptpgeometry.bbox2polygon(bbox, osr_spref, segment=0.5)
+
+        # switch for ROI defined by a single polygon or point(s)
+        if roi_geometry.GetGeometryName() in ['POLYGON', 'MULTIPOINT', 'POINT']:
+
+            tiles = self._search_tiles_in_roi(roi_geometry=roi_geometry,
+                                              subgrid_ids=subgrid_ids,
+                                              coverland=coverland)
+
+        # switch for ROI defined by multiple polygons
+        if roi_geometry.GetGeometryName() == 'MULTIPOLYGON':
+
+            tiles = []
+
+            # search tiles for each polygon individually
+            for i_polygon in list(range(roi_geometry.GetGeometryCount())):
+
+                geometry = roi_geometry.GetGeometryRef(i_polygon)
+
+                i_tiles = self._search_tiles_in_roi(roi_geometry=geometry,
+                                                    subgrid_ids=subgrid_ids,
+                                                    coverland=coverland)
+
+                tiles += i_tiles
+
+            # reduce to unique list of tiles
+            tiles = list(set(tiles))
+
+        return tiles
+
+
+    def _search_tiles_in_roi(self,
+                             roi_geometry=None,
+                             subgrid_ids=None,
+                             coverland=False):
+        """
+        Internal function: Search the tiles of the grid which intersect by the given area.
+
+        Parameters
+        ----------
+        roi_geometry : geometry
+            a polygon or multipolygon geometry object representing the ROI
+        sgrid_ids : string or list of strings
+            subgrid IDs, e.g. specifying over which continent
+            you want to search.
+            Default value is None for searching all subgrids.
+        coverland : Boolean
+            option to search for tiles covering land at any point in the tile
+
+        Returns
+        -------
+        list
+            return a list of  the overlapped tiles' name.
+            If not found, return empty list.
+        """
 
         # load lat-lon spatial reference as the default
         geog_sr = TPSProjection(epsg=4326).osr_spref
@@ -655,7 +699,7 @@ class TiledProjection(object):
         """
         overlapped_tiles = list()
 
-        if geometry.GetGeometryName() == 'MULTIPOINT':
+        if geometry.GetGeometryName() in ['MULTIPOINT', 'POINT']:
             if geometry.Intersects(self.polygon_geog):
                 # get intersect area with subgrid in latlon
                 intersect_geometry = geometry.Intersection(self.polygon_geog)

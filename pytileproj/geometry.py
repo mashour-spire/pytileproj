@@ -501,6 +501,7 @@ def get_lonlat_intersection(geometry1, geometry2):
 
     if geometry1c.GetGeometryName() == 'MULTIPOLYGON':
         geometry1c = ogr.ForceToPolygon(geometry1c)
+        print('Warning: get_lonlat_intersection(): Take care: Multipolygon is forced to Polygon!')
 
     polygons = split_polygon_by_antimeridian(geometry1c)
 
