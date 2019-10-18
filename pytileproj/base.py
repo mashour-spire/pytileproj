@@ -466,6 +466,7 @@ class TiledProjectionSystem(object):
             print("Error: Either roi_geometry, bbox, or points must be given "
                   "as the region-of-interest!")
             return list()
+        
 
         # obtain the ROI
         if roi_geometry is None:
@@ -550,16 +551,26 @@ class TiledProjectionSystem(object):
                 raise Warning('Please check unit of geometry before reprojection!')
             roi_geometry = ptpgeometry.transform_geometry(roi_geometry, geog_sr, segment=max_segment)
 
-        # intersect the given grid ids and the overlapped ids
-        overlapped_grids = self.locate_geometry_in_subgrids(roi_geometry)
-        subgrid_ids = list(set(subgrid_ids) & set(overlapped_grids))
-
-        # finding tiles
+        if roi_geometry.GetGeometryName() == 'MULTIPOLYGON':
+            roi_polygons = []
+            for i in range(roi_geometry.GetGeometryCount()):
+                poly = roi_geometry.GetGeometryRef(i).Clone()
+                poly.AssignSpatialReference(geog_sr)
+                roi_polygons.append(poly)
+        else:
+            roi_polygons = [roi_geometry]
+        
         overlapped_tiles = list()
-        for sgrid_id in subgrid_ids:
-            overlapped_tiles.extend(self.subgrids[sgrid_id].search_tiles_over_geometry(
-                                                            roi_geometry, coverland=coverland))
-        return overlapped_tiles
+        for roi_polygon in roi_polygons:
+            # intersect the given grid ids and the overlapped ids
+            overlapped_grids = self.locate_geometry_in_subgrids(roi_polygon)
+            subgrid_ids = list(set(subgrid_ids) & set(overlapped_grids))
+
+            # finding tiles
+            for sgrid_id in subgrid_ids:
+                overlapped_tiles.extend(self.subgrids[sgrid_id].search_tiles_over_geometry(
+                                                                roi_polygon, coverland=coverland))
+        return list(set(overlapped_tiles))
 
 
 class TiledProjection(object):
