@@ -537,10 +537,15 @@ def split_polygon_by_antimeridian(lonlat_polygon, split_limit=150.0):
     # which is most probably a wrong interpretion.
     # --> wrapping longitudes to the eastern Hemisphere (adding 360°)
     if (len(np.unique(np.sign(lons))) == 2) and (np.mean(np.abs(lons)) > split_limit):
-        new_points = [(y[0] + 360, y[1], y[2]) if y[0] < 0 else y for y in in_points]
+        new_points = [(y[0] + 360, y[1]) if y[0] < 0 else y for y in in_points]
         lonlat_polygon = create_polygon_geometry(new_points,
                                 lonlat_polygon.GetSpatialReference(),
                                 segment=0.5)
+
+    ## return input polygon if not cross anti-meridian 
+    max_lon = np.max([p[0] for p in lonlat_polygon.GetGeometryRef(0).GetPoints()])
+    if max_lon<=180:
+        return lonlat_polygon
 
     # define the antimeridian
     antimeridian = LineString([(180, -90), (180, 90)])
