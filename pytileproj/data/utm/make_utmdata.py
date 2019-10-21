@@ -87,8 +87,8 @@ def make_utmdata(outpath, version="V10"):
         zone_extent = load_zone_extent(subgrid)
         subgrid_data["zone_extent"] = zone_extent.ExportToWkt()
 
-        sr_wkt = load_spatial_reference(subgrid)
-        subgrid_data["wkt"] = sr_wkt
+        str_proj4 = load_spatial_reference(subgrid)
+        subgrid_data["proj4"] = str_proj4
 
         utm_data[subgrid] = subgrid_data
     
@@ -123,8 +123,8 @@ def load_spatial_reference(subgrid):
         epsg = '32661'
     spref = osr.SpatialReference()
     spref.ImportFromEPSG(int(epsg))
-    sr_wkt = spref.ExportToWkt()
-    return sr_wkt
+    str_proj4 = spref.ExportToProj4()
+    return str_proj4
 
 
 def load_coverland_tiles(tile_fpath):

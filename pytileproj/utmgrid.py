@@ -410,7 +410,7 @@ class UTMSubgrid(TiledProjection):
 
     """
 
-    def __init__(self, core, continent):
+    def __init__(self, core, zone):
         """
         Initialises an UTMSubgrid class for a specified continent.
 
@@ -418,24 +418,22 @@ class UTMSubgrid(TiledProjection):
         ----------
         core : TPSCoreProperty
             defines core parameters of the (sub-) grid
-        continent : str
+        zone : str
             acronym of the continent, e.g. '01N' or '17S'.
         """
 
         # load WKT string and extent shape
-        data = UTMGrid._static_data[continent]
+        data = UTMGrid._static_data[zone]
 
         _core = copy.copy(core)
-        _core.tag = continent
-        _core.projection = TPSProjection(wkt=data['wkt'])
+        _core.tag = zone
+        _core.projection = TPSProjection(proj4=data['proj4'])
 
         # holds core parameters of the (sub-) grid
         self.core = _core
 
         # holds name of the subgrid
-        self.name = ''.join(
-            ('UTMG_', continent, UTMGrid.encode_sampling(core.sampling),
-             'M'))
+        self.name = ''.join(('UTMG_', zone, UTMGrid.encode_sampling(core.sampling), 'M'))
 
         # holds the extent of the subgrid in the latlon-space
         self.polygon_geog = create_geometry_from_wkt(data['zone_extent'])
