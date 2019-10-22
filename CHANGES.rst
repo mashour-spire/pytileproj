@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version v0.0.12
+===============
+
+- bugfix in antimeridian handling
+
 Version v0.0.11
 ===============
 
