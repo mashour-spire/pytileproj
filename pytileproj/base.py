@@ -466,7 +466,7 @@ class TiledProjectionSystem(object):
             print("Error: Either roi_geometry, bbox, or points must be given "
                   "as the region-of-interest!")
             return list()
-        
+
 
         # obtain the ROI
         if roi_geometry is None:
@@ -559,7 +559,7 @@ class TiledProjectionSystem(object):
                 roi_polygons.append(poly)
         else:
             roi_polygons = [roi_geometry]
-        
+
         overlapped_tiles = list()
         for roi_polygon in roi_polygons:
             # intersect the given grid ids and the overlapped ids
@@ -1357,9 +1357,9 @@ class Tile(object):
         Parameters
         ----------
         i : number
-            pixel row number
+            pixel column number
         j : number
-            pixel collumn number
+            pixel row number
         lowerleft : bool, optional
             should the row numbering start at the bottom?
             If yes, it returns lowerleft indices.
