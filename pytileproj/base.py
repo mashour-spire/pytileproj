@@ -466,7 +466,7 @@ class TiledProjectionSystem(object):
             print("Error: Either roi_geometry, bbox, or points must be given "
                   "as the region-of-interest!")
             return list()
-        
+
 
         # obtain the ROI
         if roi_geometry is None:
@@ -559,7 +559,7 @@ class TiledProjectionSystem(object):
                 roi_polygons.append(poly)
         else:
             roi_polygons = [roi_geometry]
-        
+
         overlapped_tiles = list()
         for roi_polygon in roi_polygons:
             # intersect the given grid ids and the overlapped ids
@@ -1344,10 +1344,13 @@ class Tile(object):
         return geot
 
 
-    def ij2xy(self, i, j, lowerleft=False):
+    def ij2xy(self, i, j, lowerleft=False, offset='center'):
         """
         Returns the projected coordinates of a tile pixel in the TilingSystem
         for a given pixel pair defined by column and row (pixel indices)
+
+        By default, the pixels center is returned (this can be changed
+        by setting 'offset' to one of 'll', 'lr', 'ul', 'ur')
 
         columns go from left to right
         rows go either
@@ -1357,12 +1360,16 @@ class Tile(object):
         Parameters
         ----------
         i : number
-            pixel row number
+            pixel column number
         j : number
-            pixel collumn number
+            pixel row number
         lowerleft : bool, optional
             should the row numbering start at the bottom?
             If yes, it returns lowerleft indices.
+        offset : str, optional
+            location of the returned coordinates.
+            possible values are: ('ll', 'lr', 'ul', 'ur', 'center')
+            The default is 'center'.
 
         Returns
         -------
@@ -1379,6 +1386,41 @@ class Tile(object):
 
         x = gt[0] + i * gt[1] + j * gt[2]
         y = gt[3] + i * gt[4] + j * gt[5]
+
+        assert offset in ['ll', 'lr', 'ul', 'ur', 'center'], (
+            "offset must be one of ['ll', 'lr', 'ul', 'ur', 'center']")
+
+
+        if offset == 'center':
+            xcenterpos = gt[1] / 2
+            ycenterpos = gt[5] / 2
+            # use integers if possible
+            if xcenterpos.is_integer(): xcenterpos = int(xcenterpos)
+            if ycenterpos.is_integer(): ycenterpos = int(ycenterpos)
+
+            x += xcenterpos
+            y += ycenterpos
+
+        else:
+            if lowerleft:
+                if offset == 'ul':
+                    y += gt[5]
+                if offset == 'ur':
+                    y += gt[5]
+                    x += gt[1]
+                if offset == 'll': pass
+                if offset == 'lr':
+                    x += gt[1]
+            else:
+                if offset == 'ul': pass
+                if offset == 'ur':
+                    x += gt[1]
+                if offset == 'll':
+                    y += gt[5]
+                if offset == 'lr':
+                    x += gt[1]
+                    y += gt[5]
+
 
         if self.core.sampling <= 1.0:
             precision = len(str(int(1.0 / self.core.sampling))) + 1
