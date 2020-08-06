@@ -153,10 +153,16 @@ class TestBaseViaUTMGrid(unittest.TestCase):
         x_should = 481500
         y_should = 9270500
         tile = utm.Z18N.tilesys.create_tile(x=481746, y=9270569)
-        x, y = tile.ij2xy(963, 659, offset='ul')
+        x, y = tile.ij2xy(963, 659)
         nptest.assert_allclose(x_should, x)
         nptest.assert_allclose(y_should, y)
 
+        # pixel center position
+        x_should = 750
+        y_should = 9000750
+        x, y = tile.ij2xy(1, 1, lowerleft=True, offset='center')
+        nptest.assert_allclose(x_should, x)
+        nptest.assert_allclose(y_should, y)
 
     def test_xy2ij(self):
         """

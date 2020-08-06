@@ -1344,7 +1344,7 @@ class Tile(object):
         return geot
 
 
-    def ij2xy(self, i, j, lowerleft=False, offset='center'):
+    def ij2xy(self, i, j, lowerleft=False, offset='ul'):
         """
         Returns the projected coordinates of a tile pixel in the TilingSystem
         for a given pixel pair defined by column and row (pixel indices)
@@ -1369,7 +1369,7 @@ class Tile(object):
         offset : str, optional
             location of the returned coordinates.
             possible values are: ('ll', 'lr', 'ul', 'ur', 'center')
-            The default is 'center'.
+            The default is 'ul'.
 
         Returns
         -------
