@@ -1,5 +1,4 @@
-# Copyright (c) 2017, Vienna University of Technology (TU Wien), Department of
-# Geodesy and Geoinformation (GEO).
+# Copyright (c) 2021, TU Wien, Department of Geodesy and Geoinformation
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -92,7 +91,7 @@ def create_UTM_zone_names():
         all acronyms for the 124 zones, e.g. Z17S
 
     """
-    helper = [str(x).zfill(2) for x in range(0,61)]
+    helper = [str(x).zfill(2) for x in range(0, 61)]
     subgrids = ['Z' + x + 'N' for x in helper[1:]] + \
                ['Z' + x + 'S' for x in helper[1:]] + \
                ['Z00A', 'Z00B', 'Z00Y', 'Z00Z']
@@ -151,7 +150,6 @@ class UTMGrid(TiledProjectionSystem):
         super(UTMGrid, self).__init__(sampling, tag='UTM')
         self.core.projection = 'multiple'
 
-
     @staticmethod
     def encode_sampling(sampling):
         """
@@ -174,7 +172,6 @@ class UTMGrid(TiledProjectionSystem):
             sampling_str = "".join(
                 (str(sampling / 1000.0)[0], 'K', str(sampling / 1000.0)[2]))
         return sampling_str
-
 
     @staticmethod
     def decode_sampling(sampling_str):
@@ -201,7 +198,6 @@ class UTMGrid(TiledProjectionSystem):
             sampling = int(sampling_str)
         return sampling
 
-
     def define_subgrids(self):
         """
         Builds the grid's subgrids from a static file.
@@ -215,7 +211,6 @@ class UTMGrid(TiledProjectionSystem):
         for sg in self._static_subgrid_ids:
             subgrids[sg] = UTMSubgrid(self.core, sg)
         return subgrids
-
 
     def get_tiletype(self, sampling=None):
         """
@@ -256,7 +251,6 @@ class UTMGrid(TiledProjectionSystem):
 
         return tilecode
 
-
     def get_tilesize(self, sampling):
         """
         Return the tile size in metres defined for the grid's sampling
@@ -278,7 +272,6 @@ class UTMGrid(TiledProjectionSystem):
             self.get_tiletype(sampling)]
         return xsize, ysize
 
-
     def create_tile(self, name):
         """
         shortcut to create_tile, returning a UTMTile object
@@ -295,7 +288,6 @@ class UTMGrid(TiledProjectionSystem):
 
         """
         return self.subgrids[name[0:2]].tilesys.create_tile(name)
-
 
     def lonlat2xy_MGRS(self, lon, lat, subgrid=None):
         """
@@ -327,7 +319,6 @@ class UTMGrid(TiledProjectionSystem):
         zone = vfunc(zone, lon, lat)
 
         return zone, x, y
-
 
     def _return_latitude_band(self, subgrid, lon, lat):
         """
@@ -365,7 +356,6 @@ class UTMGrid(TiledProjectionSystem):
 
         return zone_code
 
-
     def lonlat2ij_in_tile(self, lon, lat, lowerleft=False):
         """
         finds the tile and the pixel indices of a given point in lon-lat-space.
@@ -399,7 +389,8 @@ class UTMGrid(TiledProjectionSystem):
         # get the xy-coordinates
         subgrid, x, y = self._lonlat2xy(lon, lat)
 
-        tilename, i, j = self.subgrids[str(subgrid)].tilesys.xy2ij_in_tile(x, y, lowerleft=lowerleft)
+        tilename, i, j = self.subgrids[str(subgrid)].tilesys.xy2ij_in_tile(
+            x, y, lowerleft=lowerleft)
 
         return tilename, i, j
 
@@ -433,7 +424,8 @@ class UTMSubgrid(TiledProjection):
         self.core = _core
 
         # holds name of the subgrid
-        self.name = ''.join(('UTMG_', zone, UTMGrid.encode_sampling(core.sampling), 'M'))
+        self.name = ''.join(
+            ('UTMG_', zone, UTMGrid.encode_sampling(core.sampling), 'M'))
 
         # holds the extent of the subgrid in the latlon-space
         self.polygon_geog = create_geometry_from_wkt(data['zone_extent'])
@@ -441,7 +433,8 @@ class UTMSubgrid(TiledProjection):
         # defines the tilingsystem of the subgrid
         self.tilesys = UTMTilingSystem(self.core, self.polygon_geog)
 
-        super(UTMSubgrid, self).__init__(self.core, self.polygon_geog, self.tilesys)
+        super(UTMSubgrid, self).__init__(
+            self.core, self.polygon_geog, self.tilesys)
 
 
 class UTMTilingSystem(TilingSystem):
@@ -467,12 +460,11 @@ class UTMTilingSystem(TilingSystem):
         self.msg1 = '"tilename" is not properly defined! Examples: ' \
                     '"{0}{1:03d}M_E012N036{2}" ' \
                     'or "E012N036{2}"'.format(
-            self.core.tag, self.core.sampling, self.core.tiletype)
+                        self.core.tag, self.core.sampling, self.core.tiletype)
         self.msg2 = 'East and North coordinates of lower-left-pixel ' \
                     'must be multiples of {}00km!'.format(
-            self.core.tile_ysize_m // 100000)
+                        self.core.tile_ysize_m // 100000)
         self.msg3 = 'Tilecode must be one of T6, T3, T1!'
-
 
     def create_tile(self, name=None, x=None, y=None):
         """
@@ -516,7 +508,6 @@ class UTMTilingSystem(TilingSystem):
 
         return UTMTile(self.core, name, llx, lly, covers_land=covers_land)
 
-
     def point2tilename(self, x, y, shortform=False):
         """
         Returns the name string of an UTMTile in which the point,
@@ -543,7 +534,6 @@ class UTMTilingSystem(TilingSystem):
         """
         llx, lly = self.round_xy2lowerleft(x, y)
         return self._encode_tilename(llx, lly, shortform=shortform)
-
 
     def encode_tilename(self, llx, lly, sampling, tilecode, shortform=False):
         """
@@ -579,7 +569,6 @@ class UTMTilingSystem(TilingSystem):
 
         return tilename
 
-
     def _encode_tilename(self, llx, lly, shortform=False):
         """
         Encodes a tilename defined by the lower-left coordinates of the tile,
@@ -604,7 +593,6 @@ class UTMTilingSystem(TilingSystem):
         return self.encode_tilename(llx, lly, self.core.sampling,
                                     self.core.tiletype, shortform=shortform)
 
-
     def tilename2short(self, longform):
         """
         Converts a tilename in longform to shortform
@@ -626,7 +614,6 @@ class UTMTilingSystem(TilingSystem):
             shortform = longform[9:]
         return shortform
 
-
     def tilename2lowerleft(self, tilename):
         """
         Return the lower-left coordinates of the tile
@@ -644,7 +631,6 @@ class UTMTilingSystem(TilingSystem):
         """
         _, _, _, llx, lly, _ = self.decode_tilename(tilename)
         return llx, lly
-
 
     def check_tilename(self, tilename):
         """
@@ -666,7 +652,6 @@ class UTMTilingSystem(TilingSystem):
         self.decode_tilename(tilename)
         check = True
         return check
-
 
     def decode_tilename(self, tilename):
         """
@@ -738,7 +723,6 @@ class UTMTilingSystem(TilingSystem):
             raise ValueError(self.msg1)
 
         return subgrid_id, sampling, tile_size_m, llx * 100000, lly * 100000, tilecode
-
 
     def get_congruent_tiles_from_tilename(self, tilename,
                                           target_sampling=None,
@@ -829,7 +813,6 @@ class UTMTilingSystem(TilingSystem):
 
         return family_tiles
 
-
     def check_tile_covers_land(self, tilename=None):
         """
         checks if a tile covers land
@@ -852,7 +835,6 @@ class UTMTilingSystem(TilingSystem):
         """
         # TODO check_tile_covers_land() not implemented!"
         return True
-
 
     def list_tiles_covering_land(self):
         """

@@ -1,7 +1,0 @@
-# Add your requirements here like:
-#
-# numpy - install via conda
-# gdal - install via conda
-# scipy - install via conda
-# shapely - install via conda
-# pyproj - install via conda
