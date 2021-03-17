@@ -2,8 +2,11 @@
 pytileproj
 ==========
 
-.. image:: https://travis-ci.org/TUW-GEO/pytileproj.svg?branch=master
-    :target: https://travis-ci.org/TUW-GEO/pytileproj
+.. image:: https://github.com/TUW-GEO/pytileproj/workflows/ubuntu/badge.svg
+   :target: https://github.com/TUW-GEO/pytileproj/actions/workflows/ubuntu.yml
+
+.. image:: https://github.com/TUW-GEO/pytileproj/workflows/windows/badge.svg
+   :target: https://github.com/TUW-GEO/pytileproj/actions/workflows/windows.yml
 
 .. image:: https://coveralls.io/repos/github/TUW-GEO/pytileproj/badge.svg?branch=master
     :target: https://coveralls.io/github/TUW-GEO/pytileproj?branch=master
