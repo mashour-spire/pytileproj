@@ -43,5 +43,6 @@ jobs:
       - name: Install package and test
         shell: bash -l {0}
         run: |
+          pip install pytest==3.8.2 pytest-cov coverage==4.5.2
           pip install .
           python setup.py test
