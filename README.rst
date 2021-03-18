@@ -2,8 +2,11 @@
 pytileproj
 ==========
 
-.. image:: https://travis-ci.org/TUW-GEO/pytileproj.svg?branch=master
-    :target: https://travis-ci.org/TUW-GEO/pytileproj
+.. image:: https://github.com/TUW-GEO/pytileproj/workflows/ubuntu/badge.svg
+   :target: https://github.com/TUW-GEO/pytileproj/actions/workflows/ubuntu.yml
+
+.. image:: https://github.com/TUW-GEO/pytileproj/workflows/windows/badge.svg
+   :target: https://github.com/TUW-GEO/pytileproj/actions/workflows/windows.yml
 
 .. image:: https://coveralls.io/repos/github/TUW-GEO/pytileproj/badge.svg?branch=master
     :target: https://coveralls.io/github/TUW-GEO/pytileproj?branch=master
@@ -104,5 +107,5 @@ If you want to contribute please follow these steps:
 Note
 ====
 
-This project has been set up using PyScaffold 2.5.11. For details and usage
-information on PyScaffold see http://pyscaffold.readthedocs.org/.
+This project has been set up using PyScaffold 3.3. For details and usage
+information on PyScaffold see https://pyscaffold.org/.

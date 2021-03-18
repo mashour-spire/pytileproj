@@ -1,5 +1,4 @@
-# Copyright (c) 2018, Vienna University of Technology (TU Wien), Department of
-# Geodesy and Geoinformation (GEO).
+# Copyright (c) 2021, TU Wien, Department of Geodesy and Geoinformation
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -347,7 +346,8 @@ def create_polygon_geometry(points, osr_spref, segment=None):
 
     # modify the geometry such it has no segment longer then the given distance
     if segment is not None:
-        polygon_geometry = segmentize_geometry(polygon_geometry, segment=segment)
+        polygon_geometry = segmentize_geometry(
+            polygon_geometry, segment=segment)
 
     return polygon_geometry
 
@@ -434,8 +434,8 @@ def intersect_geometry(geometry1, geometry2):
         a geometry representing the intersection area
     """
 
-    geometry1c=geometry1.Clone()
-    geometry2c=geometry2.Clone()
+    geometry1c = geometry1.Clone()
+    geometry2c = geometry2.Clone()
     geometry1 = None
     geometry2 = None
 
@@ -494,8 +494,8 @@ def get_lonlat_intersection(geometry1, geometry2):
         does geometry1 intersect with geometry2?
     """
 
-    geometry1c=geometry1.Clone()
-    geometry2c=geometry2.Clone()
+    geometry1c = geometry1.Clone()
+    geometry2c = geometry2.Clone()
     geometry1 = None
     geometry2 = None
 
@@ -539,19 +539,21 @@ def split_polygon_by_antimeridian(lonlat_polygon, split_limit=150.0):
     if (len(np.unique(np.sign(lons))) == 2) and (np.mean(np.abs(lons)) > split_limit):
         new_points = [(y[0] + 360, y[1]) if y[0] < 0 else y for y in in_points]
         lonlat_polygon = create_polygon_geometry(new_points,
-                                lonlat_polygon.GetSpatialReference(),
-                                segment=0.5)
+                                                 lonlat_polygon.GetSpatialReference(),
+                                                 segment=0.5)
 
-    ## return input polygon if not cross anti-meridian 
-    max_lon = np.max([p[0] for p in lonlat_polygon.GetGeometryRef(0).GetPoints()])
-    if max_lon<=180:
+    # return input polygon if not cross anti-meridian
+    max_lon = np.max([p[0]
+                      for p in lonlat_polygon.GetGeometryRef(0).GetPoints()])
+    if max_lon <= 180:
         return lonlat_polygon
 
     # define the antimeridian
     antimeridian = LineString([(180, -90), (180, 90)])
 
     # use shapely for the splitting
-    merged = linemerge([Polygon(lonlat_polygon.GetBoundary().GetPoints()).boundary, antimeridian])
+    merged = linemerge(
+        [Polygon(lonlat_polygon.GetBoundary().GetPoints()).boundary, antimeridian])
     borders = unary_union(merged)
     polygons = polygonize(borders)
 
@@ -610,7 +612,8 @@ def get_geometry_envelope(geometry, rounding=1.0):
 
     # get the "envelope" of a POINT geometry
     if geometry.ExportToWkt().startswith('POINT'):
-        out = tuple([int(x / rounding) * rounding for x in geometry.GetPoint()[0:2]])*2
+        out = tuple(
+            [int(x / rounding) * rounding for x in geometry.GetPoint()[0:2]])*2
 
     # get the envelope for each sub-geometry
     # works for MULTIPOLYGON; POLYGON; MULTIPOINT
@@ -624,19 +627,20 @@ def get_geometry_envelope(geometry, rounding=1.0):
         # shuffle order to [xmin, ymin, xmax, ymax]
         # BBM: please change if you know a better way!
         envelope = np.zeros_like(li)
-        envelope[:,0] = li[:,0]
-        envelope[:,1] = li[:,2]
-        envelope[:,2] = li[:,1]
-        envelope[:,3] = li[:,3]
+        envelope[:, 0] = li[:, 0]
+        envelope[:, 1] = li[:, 2]
+        envelope[:, 2] = li[:, 1]
+        envelope[:, 3] = li[:, 3]
 
         # exclude antimeridian as potential limit (experimential)
         if geometry.GetSpatialReference().ExportToProj4().startswith('+proj=longlat') and (
-            n_geometries >= 2):
+                n_geometries >= 2):
             envelope[envelope == -180.0] = np.nan
             envelope[envelope == 180.0] = np.nan
 
         # get the extreme values as tuple
-        out = tuple((*np.nanmin(envelope, axis=0)[0:2], *np.nanmax(envelope, axis=0)[2:4]))
+        out = tuple((*np.nanmin(envelope, axis=0)
+                     [0:2], *np.nanmax(envelope, axis=0)[2:4]))
 
     return out
 
@@ -713,10 +717,10 @@ def setup_test_geom_spitzbergen():
 
     osr_spref = get_geog_spatial_ref()
 
-    points = [(8.391827331539572,77.35762113396143),
-              (16.87007957357446,81.59290885863483),
-              (40.50119498304080,79.73786853853339),
-              (25.43098663332705,75.61353436967198)]
+    points = [(8.391827331539572, 77.35762113396143),
+              (16.87007957357446, 81.59290885863483),
+              (40.50119498304080, 79.73786853853339),
+              (25.43098663332705, 75.61353436967198)]
 
     poly_spitzbergen = create_polygon_geometry(points, osr_spref, segment=None)
 
@@ -759,12 +763,13 @@ def setup_test_geom_siberia_antimeridian_180plus():
 
     osr_spref = get_geog_spatial_ref()
 
-    points = [(177.6584965942706,67.04864900747906),
-              (179.0142461506587,65.34233852520839),
-              (184.1800038679373,65.74423313395079),
-              (183.1741580487398,67.46683765736415)]
+    points = [(177.6584965942706, 67.04864900747906),
+              (179.0142461506587, 65.34233852520839),
+              (184.1800038679373, 65.74423313395079),
+              (183.1741580487398, 67.46683765736415)]
 
-    poly_siberia_antim_180plus = create_polygon_geometry(points, osr_spref, segment=None)
+    poly_siberia_antim_180plus = create_polygon_geometry(
+        points, osr_spref, segment=None)
 
     return poly_siberia_antim_180plus
 
@@ -783,11 +788,12 @@ def setup_test_geom_siberia_alaska():
 
     osr_spref = get_geog_spatial_ref()
 
-    points = [(177.6545884597184,67.05574774066811),
-              (179.0195867605756,65.33232820668778),
-              (198.4723636216472,66.06909015550372),
-              (198.7828129097253,68.14247939909886)]
+    points = [(177.6545884597184, 67.05574774066811),
+              (179.0195867605756, 65.33232820668778),
+              (198.4723636216472, 66.06909015550372),
+              (198.7828129097253, 68.14247939909886)]
 
-    poly_siberia_alaska = create_polygon_geometry(points, osr_spref, segment=None)
+    poly_siberia_alaska = create_polygon_geometry(
+        points, osr_spref, segment=None)
 
     return poly_siberia_alaska

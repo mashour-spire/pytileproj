@@ -1,5 +1,4 @@
-# Copyright (c) 2018, Vienna University of Technology (TU Wien), Department of
-# Geodesy and Geoinformation (GEO).
+# Copyright (c) 2021, TU Wien, Department of Geodesy and Geoinformation
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +38,6 @@ system.
 '''
 
 
-
 import numpy as np
 import os
 import shutil
@@ -72,7 +70,8 @@ os.mkdir(gridpath)
 os.mkdir(shapepath)
 
 drv = ogr.GetDriverByName("ESRI Shapefile")
-dst_ds = drv.CreateDataSource(os.path.join(shapepath, 'UTM_UPS_V10_ALL_ZONES_GEOG_ZONE.shp'))
+dst_ds = drv.CreateDataSource(os.path.join(
+    shapepath, 'UTM_UPS_V10_ALL_ZONES_GEOG_ZONE.shp'))
 dst_layer = dst_ds.CreateLayer("out", srs=srs)
 fd = ogr.FieldDefn('ZONE', ogr.OFTInteger)
 dst_layer.CreateField(fd)
@@ -104,9 +103,8 @@ for n in ns:
     east = feature.GetField('EAST_VALUE')
     row = feature.GetField('ROW_')
 
-
     nice_geometry = geometry.round_vertices_of_polygon(
-                                    feature.geometry().Clone())
+        feature.geometry().Clone())
     geometries.append(nice_geometry)
     zones.append(zone)
     wests.append(west)
@@ -120,8 +118,8 @@ all_zones = np.unique(zones)
 
 
 polar_rows = ['A', 'B', 'Y', 'Z']
-south_rows = ['C','D','E','F','G','H','J','K','L','M']
-north_rows = ['N','P','Q','R','S','T','U','V','W','X']
+south_rows = ['C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M']
+north_rows = ['N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X']
 
 
 for zone_number in all_zones:
@@ -135,7 +133,8 @@ for zone_number in all_zones:
             geometries_merged = geometries_in_zone[0].Clone()
 
             # modify the geometry such it has no segment longer then the given distance
-            geometries_merged = geometry.segmentize_geometry(geometries_merged, segment=0.5)
+            geometries_merged = geometry.segmentize_geometry(
+                geometries_merged, segment=0.5)
 
             xfeature = ogr.Feature(dst_layer.GetLayerDefn())
 
@@ -156,7 +155,7 @@ for zone_number in all_zones:
                 os.makedirs(xpath)
             filename = os.path.join(xpath,
                                     'UTM_UPS_V10_{}_GEOG_ZONE.shp'.format(
-                                    zone_string))
+                                        zone_string))
             geometry.write_geometry(geometries_merged, filename)
 
             xfeature = None
@@ -264,9 +263,3 @@ for zone_number in all_zones:
         xfeature = None
 
 dst_ds = None
-
-
-
-
-
-

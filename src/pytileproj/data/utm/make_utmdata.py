@@ -1,6 +1,4 @@
-#! /usr/bin/env python 
-# Copyright (c) 2018, Vienna University of Technology (TU Wien), Department of
-# Geodesy and Geoinformation (GEO).
+# Copyright (c) 2021, TU Wien, Department of Geodesy and Geoinformation
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,6 +43,7 @@ from osgeo import ogr, osr
 from pytileproj import geometry
 from pytileproj.utmgrid import create_UTM_zone_names
 
+
 def make_utmdata(outpath, version="V10"):
     """ Make the utmgrid.dat file
 
@@ -52,7 +51,7 @@ def make_utmdata(outpath, version="V10"):
     ----------
     outpath : string
         output file directory path.
-    
+
     Returns
     -------
     int
@@ -70,7 +69,7 @@ def make_utmdata(outpath, version="V10"):
     }
 
     """
-    
+
     outfile = os.path.join(outpath, "utmgrid.dat")
     if os.path.exists(outfile):
         raise IOError("Error: File Already Exist!")
@@ -91,7 +90,7 @@ def make_utmdata(outpath, version="V10"):
         subgrid_data["proj4"] = str_proj4
 
         utm_data[subgrid] = subgrid_data
-    
+
     # Serialize utm_data by pickle with protocal=2
     with open(outfile, "wb") as f:
         pickle.dump(utm_data, f, protocol=2)
@@ -136,9 +135,10 @@ def load_coverland_tiles(tile_fpath):
 def main():
     parser = argparse.ArgumentParser(description='Make UTMgrid Data File')
     parser.add_argument("outpath", help="output folder")
-    parser.add_argument("-v", "--version", dest="version", nargs=1, metavar="", help="UTM Grid Version. Default is V10.")
+    parser.add_argument("-v", "--version", dest="version", nargs=1,
+                        metavar="", help="UTM Grid Version. Default is V10.")
     args = parser.parse_args()
-    
+
     outpath = os.path.abspath(args.outpath)
     version = args.version[0] if args.version else "V10"
     return make_utmdata(outpath, version)
@@ -148,4 +148,3 @@ if __name__ == "__main__":
     import sys
     sys.argv.append(r"C:\code\TPS\pytileproj\pytileproj\data\utm")
     main()
-
