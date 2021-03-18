@@ -43,6 +43,5 @@ jobs:
       - name: Install package and test
         shell: bash -l {0}
         run: |
-          $env:GDAL_DATA="$env:GITHUB_WORKSPACE\gdal\data"
           pip install .
           python setup.py test
