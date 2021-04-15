@@ -298,8 +298,7 @@ class TiledProjectionSystem(object):
 
         # create point geometry
         lonlatprojection = TPSProjection(epsg=4326)
-        point_geom = ptpgeometry.create_point_geometry(
-            lon, lat, lonlatprojection.osr_spref)
+        point_geom = ptpgeometry.create_point_geometry(lon, lat, lonlatprojection.osr_spref)
 
         # search for co-locating subgrid
         subgrid = self.locate_geometry_in_subgrids(point_geom)[0]
@@ -465,8 +464,8 @@ class TiledProjectionSystem(object):
                 roi_geometry = ptpgeometry.points2geometry(points, osr_spref)
 
             elif bbox is not None:
-                roi_geometry = ptpgeometry.bbox2polygon(
-                    bbox, osr_spref, segment=0.5)
+                segment = 50000 if osr_spref.IsProjected() else 0.5
+                roi_geometry = ptpgeometry.bbox2polygon(bbox, osr_spref, segment=segment)
 
         # switch for ROI defined by a single polygon or point(s)
         if roi_geometry.GetGeometryName() in ['POLYGON', 'MULTIPOINT', 'POINT']:
@@ -534,10 +533,8 @@ class TiledProjectionSystem(object):
             elif projected == 1:
                 max_segment = 50000
             else:
-                raise Warning(
-                    'Please check unit of geometry before reprojection!')
-            roi_geometry = ptpgeometry.transform_geometry(
-                roi_geometry, geog_sr, segment=max_segment)
+                raise Warning('Please check unit of geometry before reprojection!')
+            roi_geometry = ptpgeometry.transform_geometry(roi_geometry, geog_sr, segment=max_segment)
 
         if roi_geometry.GetGeometryName() == 'MULTIPOLYGON':
             roi_polygons = []
@@ -597,8 +594,7 @@ class TiledProjection(object):
         """
 
         self.core = core
-        self.polygon_geog = ptpgeometry.segmentize_geometry(
-            polygon_geog, segment=0.5)
+        self.polygon_geog = ptpgeometry.segmentize_geometry(polygon_geog, segment=0.5)
         self.polygon_proj = ptpgeometry.transform_geometry(
             self.polygon_geog, self.core.projection.osr_spref)
         self.bbox_proj = ptpgeometry.get_geometry_envelope(
@@ -706,8 +702,7 @@ class TiledProjection(object):
         if geometry.GetGeometryName() in ['POLYGON', 'MULTIPOLYGON']:
 
             # get intersect area with subgrid in latlon
-            intersect = ptpgeometry.get_lonlat_intersection(
-                geometry, self.polygon_geog)
+            intersect = ptpgeometry.get_lonlat_intersection(geometry, self.polygon_geog)
 
             # check if geom intersects subgrid
             if intersect.Area() == 0.0:
@@ -721,8 +716,7 @@ class TiledProjection(object):
             elif projected == 1:
                 max_segment = 50000
             else:
-                raise Warning(
-                    'Please check unit of geometry before reprojection!')
+                raise Warning('Please check unit of geometry before reprojection!')
 
             intersect_geometry = ptpgeometry.transform_geometry(intersect,
                                                                 self.projection.osr_spref,
@@ -745,6 +739,7 @@ class TiledProjection(object):
                 # get only tile if coverland is satisfied
                 if not coverland or self.tilesys.check_tile_covers_land(t.name):
                     overlapped_tiles.append(t.name)
+
 
         return overlapped_tiles
 
@@ -790,10 +785,8 @@ class TilingSystem(object):
         self.y0 = y0
         self.xstep = self.core.tile_xsize_m
         self.ystep = self.core.tile_ysize_m
-        self.polygon_proj = ptpgeometry.transform_geometry(
-            polygon_geog, self.core.projection.osr_spref)
-        self.bbox_proj = ptpgeometry.get_geometry_envelope(
-            self.polygon_proj, rounding=self.core.sampling)
+        self.polygon_proj = ptpgeometry.transform_geometry(polygon_geog, self.core.projection.osr_spref)
+        self.bbox_proj = ptpgeometry.get_geometry_envelope(self.polygon_proj, rounding=self.core.sampling)
 
     def __getattr__(self, item):
         '''
@@ -803,6 +796,7 @@ class TilingSystem(object):
             return self.core.__dict__[item]
         else:
             return self.__dict__[item]
+
 
     @abc.abstractmethod
     def create_tile(self, name=None, x=None, y=None):
@@ -1037,12 +1031,10 @@ class TilingSystem(object):
                     be = int((bbox[1] - extent[1]) // tile.core.sampling)
                 # right_edge
                 if extent[2] > bbox[2]:
-                    re = int(
-                        (bbox[2] - extent[2] + self.core.tile_xsize_m) // tile.core.sampling)
+                    re = int((bbox[2] - extent[2] + self.core.tile_xsize_m) // tile.core.sampling)
                 # top_edge
                 if extent[3] > bbox[3]:
-                    te = int(
-                        (bbox[3] - extent[3] + self.core.tile_ysize_m) // tile.core.sampling)
+                    te = int((bbox[3] - extent[3] + self.core.tile_ysize_m) // tile.core.sampling)
 
                 # subset holding indices of the tile that cover the bounding box.
                 tile.active_subset_px = le, be, re, te
@@ -1105,6 +1097,8 @@ class TilingSystem(object):
             list of co-locating tiles of other_tile_type
             e.g. ['E000N054T6', 'E000N060T6']
         """
+
+
 
         cover_tiles = []
         for t in tiles:
@@ -1361,10 +1355,8 @@ class Tile(object):
             xcenterpos = gt[1] / 2
             ycenterpos = gt[5] / 2
             # use integers if possible
-            if xcenterpos.is_integer():
-                xcenterpos = int(xcenterpos)
-            if ycenterpos.is_integer():
-                ycenterpos = int(ycenterpos)
+            if xcenterpos.is_integer(): xcenterpos = int(xcenterpos)
+            if ycenterpos.is_integer(): ycenterpos = int(ycenterpos)
 
             x += xcenterpos
             y += ycenterpos
@@ -1433,9 +1425,9 @@ class Tile(object):
 
         # get the indices
         i = (-1.0 * (gt[2] * gt[3] - gt[0] * gt[5] + gt[5] * x - gt[2] * y) /
-             (gt[2] * gt[4] - gt[1] * gt[5]))
+                       (gt[2] * gt[4] - gt[1] * gt[5]))
         j = (-1.0 * (-1 * gt[1] * gt[3] + gt[0] * gt[4] - gt[4] * x + gt[1] * y) /
-             (gt[2] * gt[4] - gt[1] * gt[5]))
+                       (gt[2] * gt[4] - gt[1] * gt[5]))
 
         # round to lower-closest integer
         i = math.floor(i)
