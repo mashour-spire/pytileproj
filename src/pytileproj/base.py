@@ -270,6 +270,9 @@ class TiledProjectionSystem(object):
             TPS grid coordinates
         """
 
+        lon = np.array(lon, dtype=np.float)
+        lat = np.array(lat, dtype=np.float)
+
         if subgrid is None:
             vfunc = np.vectorize(self._lonlat2xy)
             return vfunc(lon, lat)
