@@ -562,7 +562,7 @@ class UTMTilingSystem(TilingSystem):
         # gives long-form of tilename (e.g. "Z17S500M_E012N018T6")
         tilename = "{}{}M_E{:03d}N{:03d}{}".format(
             self.core.tag, UTMGrid.encode_sampling(sampling),
-            np.int(llx) // 100000, np.int(lly) // 100000, tilecode)
+            int(llx) // 100000, int(lly) // 100000, tilecode)
 
         if shortform:
             tilename = self.tilename2short(tilename)
