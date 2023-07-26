@@ -335,8 +335,8 @@ class TiledProjectionSystem(object):
             TPS grid coordinates
         """
 
-        tf = Transformer.from_crs(('epsg', '4326'), self.subgrids[subgrid].core.projection.proj4)
-        x, y = tf.transform(lat, lon)
+        tf = Transformer.from_crs(('epsg', '4326'), self.subgrids[subgrid].core.projection.proj4, always_xy=True)
+        x, y = tf.transform(lon, lat)
 
         return subgrid, x, y
 
@@ -665,8 +665,8 @@ class TiledProjection(object):
         # set up spatial references
 
 
-        tf = Transformer.from_crs(self.core.projection.proj4, ('epsg', '4326'))
-        lat, lon = tf.transform(x, y)
+        tf = Transformer.from_crs(self.core.projection.proj4, ('epsg', '4326'), always_xy=True)
+        lon, lat = tf.transform(x, y)
 
         return lon, lat
 
@@ -718,9 +718,8 @@ class TiledProjection(object):
             else:
                 raise Warning('Please check unit of geometry before reprojection!')
 
-            intersect_geometry = ptpgeometry.transform_geometry(intersect,
-                                                                self.projection.osr_spref,
-                                                                segment=max_segment)
+            _ = ptpgeometry.transform_geometry(intersect, self.projection.osr_spref, segment=max_segment)
+            intersect_geometry = _.MakeValid()
 
         # get envelope of the geometry
         envelope = ptpgeometry.get_geometry_envelope(intersect_geometry)

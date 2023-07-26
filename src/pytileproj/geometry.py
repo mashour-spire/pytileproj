@@ -346,8 +346,7 @@ def create_polygon_geometry(points, osr_spref, segment=None):
 
     # modify the geometry such it has no segment longer then the given distance
     if segment is not None:
-        polygon_geometry = segmentize_geometry(
-            polygon_geometry, segment=segment)
+        polygon_geometry = segmentize_geometry(polygon_geometry, segment=segment)
 
     return polygon_geometry
 
@@ -543,8 +542,7 @@ def split_polygon_by_antimeridian(lonlat_polygon, split_limit=150.0):
                                                  segment=0.5)
 
     # return input polygon if not cross anti-meridian
-    max_lon = np.max([p[0]
-                      for p in lonlat_polygon.GetGeometryRef(0).GetPoints()])
+    max_lon = np.max([p[0] for p in lonlat_polygon.GetGeometryRef(0).GetPoints()])
     if max_lon <= 180:
         return lonlat_polygon
 
@@ -552,8 +550,7 @@ def split_polygon_by_antimeridian(lonlat_polygon, split_limit=150.0):
     antimeridian = LineString([(180, -90), (180, 90)])
 
     # use shapely for the splitting
-    merged = linemerge(
-        [Polygon(lonlat_polygon.GetBoundary().GetPoints()).boundary, antimeridian])
+    merged = linemerge([Polygon(lonlat_polygon.GetBoundary().GetPoints()).boundary, antimeridian])
     borders = unary_union(merged)
     polygons = polygonize(borders)
 
@@ -612,8 +609,7 @@ def get_geometry_envelope(geometry, rounding=1.0):
 
     # get the "envelope" of a POINT geometry
     if geometry.ExportToWkt().startswith('POINT'):
-        out = tuple(
-            [int(x / rounding) * rounding for x in geometry.GetPoint()[0:2]])*2
+        out = tuple([int(x / rounding) * rounding for x in geometry.GetPoint()[0:2]])*2
 
     # get the envelope for each sub-geometry
     # works for MULTIPOLYGON; POLYGON; MULTIPOINT
@@ -639,8 +635,7 @@ def get_geometry_envelope(geometry, rounding=1.0):
             envelope[envelope == 180.0] = np.nan
 
         # get the extreme values as tuple
-        out = tuple((*np.nanmin(envelope, axis=0)
-                     [0:2], *np.nanmax(envelope, axis=0)[2:4]))
+        out = tuple((*np.nanmin(envelope, axis=0)[0:2], *np.nanmax(envelope, axis=0)[2:4]))
 
     return out
 
@@ -768,8 +763,7 @@ def setup_test_geom_siberia_antimeridian_180plus():
               (184.1800038679373, 65.74423313395079),
               (183.1741580487398, 67.46683765736415)]
 
-    poly_siberia_antim_180plus = create_polygon_geometry(
-        points, osr_spref, segment=None)
+    poly_siberia_antim_180plus = create_polygon_geometry(points, osr_spref, segment=None)
 
     return poly_siberia_antim_180plus
 
@@ -793,7 +787,6 @@ def setup_test_geom_siberia_alaska():
               (198.4723636216472, 66.06909015550372),
               (198.7828129097253, 68.14247939909886)]
 
-    poly_siberia_alaska = create_polygon_geometry(
-        points, osr_spref, segment=None)
+    poly_siberia_alaska = create_polygon_geometry(points, osr_spref, segment=None)
 
     return poly_siberia_alaska

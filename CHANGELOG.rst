@@ -2,6 +2,13 @@
 Changelog
 =========
 
+
+Version 0.0.17
+==============
+
+- update pyproj -> 3.6 (x/y axis order)
+- update numpy -> 1.2 (int)
+
 Version 0.0.14
 ==============
 
